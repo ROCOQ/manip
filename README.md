@@ -29,6 +29,7 @@ performances ou la compatibilité ne suffisent pas, passez à **MeloCafe**.
    ```
 4. Copiez les jeux validés sur l'iPad (app **Fichiers**, AirDrop, câble USB-C ou clé USB).
 5. En cas de souci : [docs/DEPANNAGE.md](docs/DEPANNAGE.md).
+6. Fiche de mon iPad : [docs/MON_IPAD.md](docs/MON_IPAD.md).
 
 ## Agents Claude Code inclus
 
