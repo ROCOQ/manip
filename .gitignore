@@ -1,0 +1,13 @@
+# Jamais de jeux ni de clés dans le dépôt
+*.wua
+*.wud
+*.wux
+*.rpx
+*.rpl
+keys.txt
+otp.bin
+seeprom.bin
+games/
+__pycache__/
+*.pyc
+.DS_Store
