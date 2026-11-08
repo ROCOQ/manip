@@ -227,7 +227,7 @@ const PROFIL_VIDE = {
   prenom: "", localisation: "", rayon_km: 50, budget_max: null, budget_ideal: null, financement: "comptant",
   usage: "mixte", km_par_an: 15000, nb_places: 5, carrosseries: [], energies: [], boite: "peu importe",
   annee_min: null, km_max: null, marques_preferees: [], marques_exclues: [], modeles_envisages: [],
-  equipements: [], redhibitoires: [], vendeur: "peu importe", notes: "",
+  equipements: [], redhibitoires: [], vendeur: "peu importe", sites_preferes: [], notes: "",
 };
 const REGLAGES_DEFAUT = { frequence: "quotidienne", pause: false, seuil_alerte: 75, concessions: true, fiabilite: true, prix: true, couts: true, verif: true };
 
@@ -351,7 +351,7 @@ function chatContext() {
 const CHEF_RULES = `Tu es le chef d'une équipe d'agents IA qui aide l'utilisateur à trouver SA voiture d'occasion (en France sauf indication contraire). Tu lui parles dans une app sur iPad. Réponds en français, court et concret, sans longs tableaux.
 Ton rôle ici : comprendre ses besoins, l'aider à choisir entre les annonces et les modèles, préparer ses appels et visites (questions à poser, points à vérifier, prix à proposer), et tenir sa mémoire à jour.
 - Apprends à le connaître : budget, usage, trajets, famille, goûts, contraintes. Pose une ou deux questions à la fois, pas plus.
-- Dès que tu apprends quelque chose d'utile, enregistre-le sans demander : maj_profil pour les champs du profil (localisation, rayon_km, budget_max, budget_ideal, financement, usage, km_par_an, nb_places, carrosseries[], energies[], boite, annee_min, km_max, marques_preferees[], marques_exclues[], modeles_envisages[], equipements[], redhibitoires[], vendeur, notes), memoriser pour le reste.
+- Dès que tu apprends quelque chose d'utile, enregistre-le sans demander : maj_profil pour les champs du profil (localisation, rayon_km, budget_max, budget_ideal, financement, usage, km_par_an, nb_places, carrosseries[], energies[], boite, annee_min, km_max, marques_preferees[], marques_exclues[], modeles_envisages[], equipements[], redhibitoires[], vendeur, sites_preferes[], notes), memoriser pour le reste.
 - Tu ne peux PAS chercher sur le web toi-même. Les recherches web (annonces, cotes, fiabilité, concessions) sont faites par la mission automatique de ton équipe. Si l'utilisateur veut une recherche précise (un modèle, une concession, une annonce à analyser), enregistre-la avec demander_recherche : elle sera traitée à la prochaine mission. Ne promets jamais un résultat que tu n'as pas.
 - Tu peux classer une annonce (statut_annonce : favori, rejetee, vue) ou une concession (statut_concession : suivie, ignoree, nouvelle) quand l'utilisateur le dit, et ajouter une concession qu'il connaît (ajouter_concession).
 - N'invente aucune annonce, aucun prix, aucune adresse : appuie-toi sur les données ci-dessous et sur tes connaissances générales (en disant que ce sont des ordres de grandeur).
@@ -687,6 +687,7 @@ function viewProfil() {
       <label class="field" for="pf-equipements">Équipements indispensables${csv("equipements", "CarPlay, caméra de recul…")}</label>
     </div>
     <label class="field" for="pf-redhibitoires">Critères rédhibitoires${csv("redhibitoires", "première main uniquement, pas de diesel…")}</label>
+    <label class="field" for="pf-sites_preferes">Sites et vendeurs que je consulte (fouillés en priorité)${csv("sites_preferes", "J.Bervas, Aramisauto…")}</label>
     <label class="field" for="pf-notes">Tout ce qui compte pour vous<textarea id="pf-notes" name="notes" rows="3" placeholder="Trajets, enfants, chien, coffre pour le vélo, style…">${esc(p.notes)}</textarea></label>
     <div class="row"><button class="btn primary" type="submit" ${S.canWrite ? "" : "disabled"}>Enregistrer le profil</button><span class="small muted" id="pf-saved"></span></div>
   </form>
