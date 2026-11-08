@@ -484,6 +484,7 @@ function annonceCard(a, compact) {
     d.statut === "favori" ? '<span class="pill good">Favori</span>' : "",
     d.risque && /lev/i.test(d.risque) ? '<span class="pill bad">Risque élevé</span>' : d.risque && /moy/i.test(d.risque) ? '<span class="pill mid">Risque moyen</span>' : "",
     d.prix_juste && d.prix && d.prix < d.prix_juste * 0.97 ? '<span class="pill good">Sous la cote</span>' : "",
+    d.source_info ? '<span class="pill mid" title="' + esc(d.source_info) + '">À vérifier</span>' : "",
   ].join("");
   const list = (t, xs) => Array.isArray(xs) && xs.length ? `<strong>${t}</strong><ul>${xs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "";
   const detail = [
@@ -550,6 +551,7 @@ function viewAccueil() {
       ${last.statut === "profil_incomplet" ? `<div class="notice">Profil trop vide pour chercher : complétez-le ou parlez au chef.</div>` : ""}
       <div>${rich(last.resume || "")}</div>
       ${(last.modeles_conseilles || []).length ? `<div class="row">${last.modeles_conseilles.map((m) => `<span class="chip">${esc(m)}</span>`).join("")}</div>` : ""}
+      ${(last.sites_bloques || []).length ? `<div class="small muted">Sites inaccessibles pendant la mission : ${last.sites_bloques.map(esc).join(", ")}. Les annonces marquées « À vérifier » viennent des résultats de recherche.</div>` : ""}
       ${(last.questions || []).length ? `<div class="stack"><strong>Le chef aimerait savoir</strong>${last.questions.map((q) => `<div class="row spread"><span>${esc(q)}</span><button class="btn sm" data-act="answer" data-q="${esc(q)}">Répondre</button></div>`).join("")}</div>` : ""}
     </section>` : ""}
   <div class="row spread"><h2>Meilleures pistes</h2>${S.annonces.length ? `<button class="btn sm ghost" data-tab="annonces">Toutes les annonces</button>` : ""}</div>
