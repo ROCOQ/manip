@@ -1,0 +1,876 @@
+<title>Chasseur de voiture</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Mise en page : rail de navigation à gauche sur iPad/Mac, barre d'onglets en bas sur téléphone.
+   Identité : asphalte + bleu de plaque d'immatriculation, chiffres comme sur un compteur. */
+:root {
+  --bg: #eef1f5;
+  --surface: #ffffff;
+  --surface-2: #f6f8fb;
+  --line: #d9dfe8;
+  --text: #141a24;
+  --muted: #5b6678;
+  --plate: #1d3f9e;
+  --plate-text: #ffffff;
+  --accent: #1d4fd8;
+  --accent-soft: #e3eafc;
+  --good: #137a3e;
+  --good-soft: #e1f3e8;
+  --mid: #a45a00;
+  --mid-soft: #fbeedb;
+  --bad: #b42323;
+  --bad-soft: #fbe4e4;
+  --plate-border: #141a24;
+  --font-display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Public Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --radius: 12px;
+  --rail: 232px;
+  --tabbar: 64px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f131a; --surface: #171c25; --surface-2: #1d2430; --line: #2a3342; --text: #e8edf5; --muted: #98a3b6;
+    --plate: #2f56c4; --plate-text: #ffffff; --accent: #7aa2ff; --accent-soft: #1c2a4d;
+    --good: #4cc47e; --good-soft: #13301f; --mid: #f0a43c; --mid-soft: #33240f; --bad: #ff7b7b; --bad-soft: #3a1717;
+    --plate-border: #e8edf5;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f131a; --surface: #171c25; --surface-2: #1d2430; --line: #2a3342; --text: #e8edf5; --muted: #98a3b6;
+  --plate: #2f56c4; --plate-text: #ffffff; --accent: #7aa2ff; --accent-soft: #1c2a4d;
+  --good: #4cc47e; --good-soft: #13301f; --mid: #f0a43c; --mid-soft: #33240f; --bad: #ff7b7b; --bad-soft: #3a1717;
+  --plate-border: #e8edf5;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--text); font: 15px/1.5 var(--font-body); }
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { display: grid; grid-template-columns: var(--rail) minmax(0, 1fr); min-height: 100%; }
+.rail {
+  position: sticky; top: 0; height: 100vh; align-self: start;
+  display: flex; flex-direction: column; gap: 20px;
+  padding-block: 20px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 16px;
+  border-right: 1px solid var(--line); background: var(--surface);
+}
+.brand { display: flex; align-items: stretch; border: 2px solid var(--plate-border); border-radius: 6px; overflow: hidden; width: fit-content; background: #ffffff; }
+.brand .eu { background: var(--plate); color: var(--plate-text); font: 700 11px/1 var(--font-display); display: grid; place-items: center; padding: 4px 5px; letter-spacing: .04em; }
+.brand .eu span { display: block; font-size: 9px; opacity: .85; }
+.brand .num { font: 700 20px/1 var(--font-display); color: #141a24; padding: 6px 10px; letter-spacing: .06em; }
+.nav { display: flex; flex-direction: column; gap: 4px; }
+.nav button {
+  display: flex; align-items: center; gap: 10px; text-align: left;
+  border: 0; background: none; padding: 10px 12px; border-radius: 10px; cursor: pointer;
+  font-weight: 600; color: var(--muted);
+}
+.nav button svg { width: 20px; height: 20px; flex: none; }
+.nav button[aria-current="page"] { background: var(--accent-soft); color: var(--accent); }
+.nav .count { margin-left: auto; font: 600 12px/1 var(--font-body); background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px 7px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rail-foot { margin-top: auto; font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
+
+main { min-width: 0; padding-block: 24px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 18px; }
+.page-head { display: flex; align-items: end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font: 700 34px/1.05 var(--font-display); letter-spacing: .01em; margin: 0; text-wrap: balance; }
+h2 { font: 700 21px/1.15 var(--font-display); letter-spacing: .02em; margin: 0; text-wrap: balance; }
+h3 { font-size: 16px; margin: 0; line-height: 1.3; }
+.eyebrow { font: 600 13px/1 var(--font-display); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; display: grid; gap: 12px; min-width: 0; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.row.spread { justify-content: space-between; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.stack { display: grid; gap: 10px; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 40px; padding: 8px 14px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); font-weight: 600; text-decoration: none; color: var(--text);
+}
+.btn.primary { background: var(--accent); border-color: transparent; color: #ffffff; }
+:root[data-theme="dark"] .btn.primary { color: #0b1430; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.primary { color: #0b1430; } }
+.btn.ghost { background: transparent; }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.sm { min-height: 34px; padding: 5px 10px; font-size: 14px; }
+
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; font-size: 13px; background: var(--surface-2); border: 1px solid var(--line); }
+.pill { font: 600 12px/1 var(--font-body); padding: 5px 8px; border-radius: 999px; }
+.pill.good { background: var(--good-soft); color: var(--good); }
+.pill.mid { background: var(--mid-soft); color: var(--mid); }
+.pill.bad { background: var(--bad-soft); color: var(--bad); }
+.pill.info { background: var(--accent-soft); color: var(--accent); }
+
+/* Score façon vignette : un disque gradué */
+.score { --v: 0; --c: var(--muted); width: 56px; height: 56px; border-radius: 50%; flex: none; display: grid; place-items: center;
+  background: conic-gradient(var(--c) calc(var(--v) * 1%), var(--line) 0); }
+.score span { width: 44px; height: 44px; border-radius: 50%; background: var(--surface); display: grid; place-items: center; font: 700 20px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.score.good { --c: var(--good); } .score.mid { --c: var(--mid); } .score.bad { --c: var(--bad); }
+
+.listing { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 14px; }
+.listing .figures { display: flex; gap: 14px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+.figure { display: grid; gap: 1px; }
+.figure b { font: 700 20px/1.1 var(--font-display); letter-spacing: .02em; }
+.figure small { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.listing .span { grid-column: 1 / -1; }
+details summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+details ul { margin: 6px 0; padding-left: 20px; }
+.listing.rejetee { opacity: .7; }
+
+.seg { display: inline-flex; gap: 2px; padding: 3px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; flex-wrap: wrap; }
+.seg button { border: 0; background: none; padding: 6px 12px; border-radius: 8px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+
+label.field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); font-weight: 600; }
+input[type="text"], input[type="number"], input[type="search"], select, textarea {
+  width: 100%; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font-size: 16px; font-weight: 400;
+}
+textarea { resize: vertical; min-height: 44px; }
+.checks { display: flex; flex-wrap: wrap; gap: 6px; }
+.checks label { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); cursor: pointer; font-size: 14px; color: var(--text); font-weight: 500; }
+.checks input { accent-color: var(--accent); }
+.checks label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+.chat { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 12px; min-height: 60vh; }
+.log { display: flex; flex-direction: column; gap: 10px; }
+.msg { max-width: min(680px, 88%); padding: 10px 14px; border-radius: 14px; overflow-wrap: anywhere; }
+.msg p { margin: 0 0 6px; } .msg p:last-child { margin: 0; }
+.msg.user { align-self: flex-end; background: var(--accent); color: #ffffff; border-bottom-right-radius: 4px; }
+:root[data-theme="dark"] .msg.user { color: #0b1430; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .msg.user { color: #0b1430; } }
+.msg.assistant { align-self: flex-start; background: var(--surface); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+.msg.note { align-self: center; font-size: 13px; color: var(--muted); background: none; padding: 2px 8px; }
+.composer { display: flex; gap: 8px; align-items: end; position: sticky; bottom: 0; background: var(--bg); padding-block: 8px; }
+.composer textarea { flex: 1; }
+.thinking { color: var(--muted); }
+
+.empty { text-align: center; color: var(--muted); padding: 28px 12px; border: 1px dashed var(--line); border-radius: var(--radius); }
+.notice { padding: 10px 14px; border-radius: 10px; background: var(--mid-soft); color: var(--mid); font-size: 14px; }
+.notice.info { background: var(--accent-soft); color: var(--accent); }
+.mono { font-variant-numeric: tabular-nums; }
+.copyable { user-select: all; font-variant-numeric: tabular-nums; }
+.memory li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+.memory { list-style: none; margin: 0; padding: 0; }
+.inline-form { display: grid; gap: 8px; padding: 10px; background: var(--surface-2); border-radius: 10px; }
+
+.tabbar { display: none; }
+@media (max-width: 760px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .rail { display: none; }
+  main { padding-bottom: calc(var(--tabbar) + 24px + env(safe-area-inset-bottom, 0px)); padding-top: 16px; }
+  h1 { font-size: 28px; }
+  .grid-2 { grid-template-columns: minmax(0, 1fr); }
+  .tabbar {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+    padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
+    background: var(--surface); border-top: 1px solid var(--line);
+  }
+  .tabbar button { flex: 1; display: grid; justify-items: center; gap: 2px; border: 0; background: none; color: var(--muted); font-size: 11px; font-weight: 600; padding: 4px 0; cursor: pointer; }
+  .tabbar button svg { width: 22px; height: 22px; }
+  .tabbar button[aria-current="page"] { color: var(--accent); }
+  .composer { bottom: calc(var(--tabbar) + env(safe-area-inset-bottom, 0px)); }
+  .listing { grid-template-columns: minmax(0, 1fr) auto; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="app">
+  <aside class="rail" aria-label="Navigation">
+    <div class="brand" aria-label="Chasseur de voiture"><div class="eu">★<span>F</span></div><div class="num">CHASSE-AUTO</div></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="rail-foot" id="rail-foot"></div>
+  </aside>
+
+  <main>
+    <div class="wrap" id="view"></div>
+  </main>
+</div>
+<nav class="tabbar" id="tabbar" aria-label="Navigation"></nav>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------- icônes
+const ICON = {
+  accueil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>',
+  annonces: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M6 17l1.5-6h9L18 17"/><path d="M8 11l1.5-4h5L16 11"/><circle cx="8" cy="17.5" r="1.6"/><circle cx="16" cy="17.5" r="1.6"/></svg>',
+  concessions: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V9l7-4 7 4v12"/><path d="M9 21v-6h6v6"/></svg>',
+  chef: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg>',
+  profil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
+};
+const TABS = [
+  ["accueil", "Accueil"], ["annonces", "Annonces"], ["concessions", "Concessions"], ["chef", "Le chef"], ["profil", "Profil"],
+];
+
+// ---------------------------------------------------------------- état
+const S = {
+  tab: "accueil",
+  db: null, sample: null, mcp: null,
+  canWrite: true,
+  loaded: false, slow: false, offline: false,
+  profil: {}, reglages: {}, systeme: {},
+  annonces: [], concessions: [], memoire: [], rapports: [], demandes: [], chat: [],
+  filtreAnnonces: "actives", filtreConcessions: "actives",
+  rejectFor: null, dealerRejectFor: null, addDealerOpen: false,
+  chatBusy: false, chatCtl: null, chatError: "",
+  fireState: "", toast: "",
+};
+const PROFIL_VIDE = {
+  prenom: "", localisation: "", rayon_km: 50, budget_max: null, budget_ideal: null, financement: "comptant",
+  usage: "mixte", km_par_an: 15000, nb_places: 5, carrosseries: [], energies: [], boite: "peu importe",
+  annee_min: null, km_max: null, marques_preferees: [], marques_exclues: [], modeles_envisages: [],
+  equipements: [], redhibitoires: [], vendeur: "peu importe", notes: "",
+};
+const REGLAGES_DEFAUT = { frequence: "quotidienne", pause: false, seuil_alerte: 75, concessions: true, fiabilite: true, prix: true, couts: true, verif: true };
+
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const nowIso = () => new Date().toISOString();
+const fmtEur = (n) => (n || n === 0) && isFinite(n) ? Math.round(n).toLocaleString("fr-FR") + " €" : "—";
+const fmtKm = (n) => (n || n === 0) && isFinite(n) ? Math.round(n).toLocaleString("fr-FR") + " km" : "—";
+const fmtDate = (iso) => { try { return new Date(iso).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }); } catch { return ""; } };
+const fmtDateTime = (iso) => { try { return new Date(iso).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
+const scoreClass = (s) => s == null ? "" : s >= 75 ? "good" : s >= 50 ? "mid" : "bad";
+const safeUrl = (u) => /^https?:\/\//i.test(String(u || "")) ? String(u) : null;
+const profil = () => ({ ...PROFIL_VIDE, ...S.profil });
+const reglages = () => ({ ...REGLAGES_DEFAUT, ...S.reglages });
+const profilVide = () => { const p = profil(); return !p.localisation && !p.budget_max && !(p.modeles_envisages || []).length && !p.notes; };
+const slug = (t) => String(t || "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "x";
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+
+// Mise en forme sûre du texte du chef : échappement puis gras, liens, paragraphes.
+function rich(text) {
+  let h = esc(text);
+  h = h.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  h = h.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  return h.split(/\n{2,}/).map((p) => "<p>" + p.replace(/\n/g, "<br>") + "</p>").join("");
+}
+
+// ---------------------------------------------------------------- écritures
+async function write(path, data) {
+  if (!S.db) throw new Error("La mémoire de l'app n'est pas disponible ici.");
+  try {
+    await S.db.doc(path).set(data);
+  } catch (e) {
+    if (e && e.code === "invalid_argument") { S.canWrite = false; render(); }
+    throw new Error(e && e.code === "quota_exceeded" ? "La mémoire de l'app est pleine : supprimez de vieilles annonces." : "Enregistrement impossible pour le moment.");
+  }
+}
+async function remove(path) { if (S.db) await S.db.doc(path).delete(); }
+async function saveProfil(patch) {
+  const next = { ...profil(), ...patch, maj: nowIso() };
+  await write("config/profil", next);
+  return next;
+}
+async function addMemory(note, source) {
+  note = String(note || "").trim().slice(0, 600);
+  if (!note) return;
+  await write("memoire/m" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), { note, ts: nowIso(), source });
+}
+async function setAnnonceStatut(id, statut, raison) {
+  const a = S.annonces.find((x) => x.id === id);
+  if (!a) throw new Error("Annonce inconnue : " + id);
+  await write("annonces/" + id, { ...a.data, statut, feedback: raison || a.data.feedback || "", maj: nowIso() });
+  if (raison) await addMemory(`Annonce ${statut === "favori" ? "aimée" : statut === "rejetee" ? "rejetée" : statut} « ${a.data.titre || a.data.url} » : ${raison}`, "vous");
+}
+async function setConcessionStatut(id, statut, raison) {
+  const c = S.concessions.find((x) => x.id === id);
+  if (!c) throw new Error("Concession inconnue : " + id);
+  await write("concessions/" + id, { ...c.data, statut, notes: raison || c.data.notes || "", maj: nowIso() });
+  if (raison) await addMemory(`Concession ${statut === "suivie" ? "suivie" : statut === "ignoree" ? "écartée" : statut} « ${c.data.nom} » : ${raison}`, "vous");
+}
+async function addConcession(d) {
+  const nom = String(d.nom || "").trim(), ville = String(d.ville || "").trim();
+  if (!nom || !ville) throw new Error("Le nom et la ville sont obligatoires.");
+  const id = "c-" + slug(nom + " " + ville);
+  const old = S.concessions.find((x) => x.id === id)?.data || {};
+  const marques = Array.isArray(d.marques) ? d.marques : String(d.marques || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const site = d.site ? (/^https?:\/\//.test(d.site) ? d.site : "https://" + d.site) : old.site || "";
+  await write("concessions/" + id, {
+    ...old, nom, ville, type: d.type || old.type || "", marques: marques.length ? marques : old.marques || [],
+    adresse: d.adresse || old.adresse || "", telephone: d.telephone || old.telephone || "", site,
+    url_stock: d.url_stock || old.url_stock || "", commentaire: d.commentaire || old.commentaire || "",
+    statut: "suivie", origine: old.origine || "vous", maj: nowIso(),
+  });
+  return id;
+}
+async function addDemande(texte) {
+  texte = String(texte || "").trim();
+  if (!texte) return;
+  await write("demandes/d" + Date.now().toString(36), { texte: texte.slice(0, 1000), ts: nowIso(), statut: "en_attente" });
+}
+
+// ---------------------------------------------------------------- recherche immédiate (tâche planifiée)
+async function lancerMaintenant() {
+  const trig = S.systeme.trigger_id;
+  if (!S.mcp || !trig) return;
+  S.fireState = "envoi";
+  render();
+  try {
+    const pending = S.demandes.filter((d) => d.data.statut === "en_attente").map((d) => d.data.texte);
+    await S.mcp.callTool("Claude Code Remote", "fire_trigger", {
+      trigger_id: trig,
+      text: "Recherche lancée à la main depuis l'app." + (pending.length ? " Demandes en attente : " + pending.join(" | ") : ""),
+    }, { cache: false });
+    S.fireState = "ok";
+  } catch (e) {
+    S.fireState = e && (e.code === "not_granted" || e.code === "server_not_connected" || e.code === "blocked_by_policy") ? "indispo" : "erreur";
+  }
+  render();
+}
+
+// ---------------------------------------------------------------- chat avec le chef
+function chatContext() {
+  const ann = S.annonces.filter((a) => a.data.statut !== "rejetee").slice(0, 25).map((a) => ({
+    id: a.id, titre: a.data.titre, prix: a.data.prix, km: a.data.km, annee: a.data.annee, energie: a.data.energie,
+    localisation: a.data.localisation, score: a.data.score, verdict: a.data.verdict, conseil: a.data.conseil,
+    risque: a.data.risque, prix_juste: a.data.prix_juste, cout_annuel: a.data.cout_annuel, statut: a.data.statut, url: a.data.url,
+  }));
+  const rej = S.annonces.filter((a) => a.data.statut === "rejetee").slice(0, 15).map((a) => ({ titre: a.data.titre, raison: a.data.feedback }));
+  const conc = S.concessions.slice(0, 20).map((c) => ({ id: c.id, nom: c.data.nom, ville: c.data.ville, marques: c.data.marques, distance_km: c.data.distance_km, statut: c.data.statut, note_avis: c.data.note_avis }));
+  const last = S.rapports[0]?.data;
+  return JSON.stringify({
+    date: new Date().toISOString().slice(0, 10), profil: profil(), reglages: reglages(),
+    memoire: S.memoire.slice(0, 40).map((m) => m.data.note), annonces: ann, annonces_rejetees: rej, concessions: conc,
+    dernier_rapport: last ? { date: last.date, resume: last.resume, modeles_conseilles: last.modeles_conseilles, questions: last.questions } : null,
+    demandes_en_attente: S.demandes.filter((d) => d.data.statut === "en_attente").map((d) => d.data.texte),
+  });
+}
+const CHEF_RULES = `Tu es le chef d'une équipe d'agents IA qui aide l'utilisateur à trouver SA voiture d'occasion (en France sauf indication contraire). Tu lui parles dans une app sur iPad. Réponds en français, court et concret, sans longs tableaux.
+Ton rôle ici : comprendre ses besoins, l'aider à choisir entre les annonces et les modèles, préparer ses appels et visites (questions à poser, points à vérifier, prix à proposer), et tenir sa mémoire à jour.
+- Apprends à le connaître : budget, usage, trajets, famille, goûts, contraintes. Pose une ou deux questions à la fois, pas plus.
+- Dès que tu apprends quelque chose d'utile, enregistre-le sans demander : maj_profil pour les champs du profil (localisation, rayon_km, budget_max, budget_ideal, financement, usage, km_par_an, nb_places, carrosseries[], energies[], boite, annee_min, km_max, marques_preferees[], marques_exclues[], modeles_envisages[], equipements[], redhibitoires[], vendeur, notes), memoriser pour le reste.
+- Tu ne peux PAS chercher sur le web toi-même. Les recherches web (annonces, cotes, fiabilité, concessions) sont faites par la mission automatique de ton équipe. Si l'utilisateur veut une recherche précise (un modèle, une concession, une annonce à analyser), enregistre-la avec demander_recherche : elle sera traitée à la prochaine mission. Ne promets jamais un résultat que tu n'as pas.
+- Tu peux classer une annonce (statut_annonce : favori, rejetee, vue) ou une concession (statut_concession : suivie, ignoree, nouvelle) quand l'utilisateur le dit, et ajouter une concession qu'il connaît (ajouter_concession).
+- N'invente aucune annonce, aucun prix, aucune adresse : appuie-toi sur les données ci-dessous et sur tes connaissances générales (en disant que ce sont des ordres de grandeur).
+Données de l'app (JSON) :
+`;
+
+const CHAT_TOOLS = [
+  { name: "maj_profil", description: "Met à jour des champs du profil d'acheteur. Renvoie le profil complet.",
+    inputSchema: { type: "object", properties: { modifications: { type: "object", description: "Champs du profil à changer." } }, required: ["modifications"] },
+    async execute(input) {
+      const allowed = Object.keys(PROFIL_VIDE), patch = {};
+      for (const [k, v] of Object.entries(input.modifications || {})) if (allowed.includes(k)) patch[k] = v;
+      if (!Object.keys(patch).length) throw new Error("Aucun champ connu. Champs possibles : " + allowed.join(", "));
+      return await saveProfil(patch);
+    } },
+  { name: "memoriser", description: "Mémorise durablement une information sur l'acheteur ou sa recherche. Renvoie ok.",
+    inputSchema: { type: "object", properties: { note: { type: "string" } }, required: ["note"] },
+    async execute(input) { await addMemory(input.note, "chef"); return "ok"; } },
+  { name: "demander_recherche", description: "Enregistre une recherche web précise que la prochaine mission de l'équipe fera (annonces d'un modèle, cote, fiabilité, concession à trouver). Renvoie ok.",
+    inputSchema: { type: "object", properties: { texte: { type: "string" } }, required: ["texte"] },
+    async execute(input) { await addDemande(input.texte); return "ok, traitée à la prochaine mission"; } },
+  { name: "statut_annonce", description: "Change le statut d'une annonce par son id : favori, rejetee, vue ou nouvelle, avec la raison donnée par l'utilisateur.",
+    inputSchema: { type: "object", properties: { id: { type: "string" }, statut: { type: "string", enum: ["favori", "rejetee", "vue", "nouvelle"] }, raison: { type: "string" } }, required: ["id", "statut"] },
+    async execute(input) { await setAnnonceStatut(String(input.id), String(input.statut), input.raison ? String(input.raison) : ""); return "ok"; } },
+  { name: "statut_concession", description: "Change le statut d'une concession par son id : suivie, ignoree ou nouvelle, avec une raison facultative.",
+    inputSchema: { type: "object", properties: { id: { type: "string" }, statut: { type: "string", enum: ["suivie", "ignoree", "nouvelle"] }, raison: { type: "string" } }, required: ["id", "statut"] },
+    async execute(input) { await setConcessionStatut(String(input.id), String(input.statut), input.raison ? String(input.raison) : ""); return "ok"; } },
+  { name: "ajouter_concession", description: "Ajoute une concession ou un garage que l'utilisateur connaît (nom et ville obligatoires). Renvoie son id.",
+    inputSchema: { type: "object", properties: { nom: { type: "string" }, ville: { type: "string" }, marques: { type: "array", items: { type: "string" } }, adresse: { type: "string" }, telephone: { type: "string" }, site: { type: "string" }, commentaire: { type: "string" } }, required: ["nom", "ville"] },
+    async execute(input) { return { id: await addConcession(input) }; } },
+];
+
+async function envoyerChat(texte) {
+  texte = String(texte || "").trim();
+  if (!texte || S.chatBusy || !S.sample) return;
+  const turns = [...S.chat, { role: "user", content: texte }];
+  S.chat = turns;
+  S.chatBusy = true;
+  S.chatError = "";
+  S.streaming = "";
+  render();
+  await saveChat();
+  S.chatCtl = new AbortController();
+  const caps = await S.sample.limits().catch(() => null);
+  const history = turns.slice(-16);
+  while (history.length && history[0].role !== "user") history.shift();
+  const input = [{ role: "user", content: CHEF_RULES + chatContext() }, ...history];
+  try {
+    const opts = { signal: S.chatCtl.signal, onText: ({ text }) => { S.streaming = text; paintStreaming(); } };
+    if (caps && caps.tools) opts.tools = CHAT_TOOLS; else opts.cache = false;
+    const { text, truncated } = await S.sample(input, opts);
+    S.chat = [...S.chat, { role: "assistant", content: text + (truncated ? "\n\n(réponse coupée, demandez la suite)" : "") }];
+    await saveChat();
+  } catch (e) {
+    const code = e && e.code;
+    if (e && e.text) S.chat = [...S.chat, { role: "assistant", content: e.text + "\n\n(réponse interrompue)" }];
+    S.chatError = code === "cancelled" ? "" : code === "not_granted" || code === "sampling_disabled" ? "Le chat n'est pas autorisé pour cette app sur votre compte."
+      : code === "rate_limited" ? "Limite d'utilisation de votre abonnement atteinte pour le moment : réessayez plus tard."
+      : code === "session_expired" ? "Reconnectez-vous à Claude puis réessayez." : "Le chef n'a pas pu répondre. Réessayez dans un instant.";
+    if (code === "not_granted" || code === "sampling_disabled") S.sample = null;
+    await saveChat();
+  } finally {
+    S.chatBusy = false;
+    S.streaming = "";
+    S.chatCtl = null;
+    render();
+  }
+}
+async function saveChat() {
+  if (!S.db || !S.canWrite) return;
+  try { await S.db.doc("chat/historique").set({ turns: S.chat.slice(-40), maj: nowIso() }); } catch {}
+}
+function paintStreaming() {
+  const el = $("#streaming");
+  if (el) el.innerHTML = S.streaming ? rich(S.streaming) : '<span class="thinking">Le chef réfléchit…</span>';
+}
+
+// ---------------------------------------------------------------- rendu
+function setTab(tab) {
+  if (!TABS.some(([k]) => k === tab)) tab = "accueil";
+  S.tab = tab;
+  if (location.hash !== "#" + tab) history.replaceState(null, "", "#" + tab);
+  store.set("voiture-tab", tab);
+  render();
+  window.scrollTo(0, 0);
+}
+
+function navHtml(withCounts) {
+  const counts = {
+    annonces: S.annonces.filter((a) => a.data.statut === "nouvelle").length,
+    concessions: S.concessions.filter((c) => c.data.statut !== "ignoree").length,
+  };
+  return TABS.map(([k, label]) => `<button data-tab="${k}" ${S.tab === k ? 'aria-current="page"' : ""}>${ICON[k]}<span>${label}</span>${withCounts && counts[k] ? `<span class="count">${counts[k]}</span>` : ""}</button>`).join("");
+}
+
+function render() {
+  $("#nav").innerHTML = navHtml(true);
+  $("#tabbar").innerHTML = navHtml(false);
+  const r = reglages();
+  const last = S.rapports[0]?.data;
+  $("#rail-foot").innerHTML = `
+    <div>${r.pause ? "Recherche automatique en pause" : "Recherche automatique : " + ({ quotidienne: "chaque jour", tous_les_2_jours: "tous les 2 jours", hebdomadaire: "chaque semaine" }[r.frequence] || "chaque jour")}</div>
+    <div>${last ? "Dernière mission : " + esc(fmtDateTime(last.date)) : "Pas encore de mission"}</div>`;
+  const view = $("#view");
+  const scrollY = window.scrollY;
+  view.innerHTML = ({ accueil: viewAccueil, annonces: viewAnnonces, concessions: viewConcessions, chef: viewChef, profil: viewProfil })[S.tab]();
+  if (S.tab !== "chef") window.scrollTo(0, scrollY);
+  else window.scrollTo(0, document.body.scrollHeight);
+}
+
+function bandeau() {
+  if (!S.db && S.loaded) return `<div class="notice">Ouvrez cette app depuis claude.ai, connecté à votre compte, pour retrouver vos données.</div>`;
+  if (S.slow && !S.loaded) return `<div class="notice">Vos données ne répondent pas encore… vérifiez la connexion.</div>`;
+  if (!S.canWrite) return `<div class="notice">Cette app est en lecture seule pour ce compte.</div>`;
+  return "";
+}
+
+function scoreBadge(s) {
+  const v = Number(s);
+  if (!isFinite(v)) return `<div class="score" style="--v:0" title="Pas encore noté"><span>–</span></div>`;
+  return `<div class="score ${scoreClass(v)}" style="--v:${Math.max(0, Math.min(100, v))}" title="Score du chef sur 100"><span>${Math.round(v)}</span></div>`;
+}
+
+function annonceCard(a, compact) {
+  const d = a.data, id = a.id;
+  const meta = [d.annee, d.energie, d.boite, d.localisation].filter(Boolean).map(esc).join(" · ");
+  const url = safeUrl(d.url);
+  const pills = [
+    d.statut === "nouvelle" ? '<span class="pill info">Nouvelle</span>' : "",
+    d.statut === "favori" ? '<span class="pill good">Favori</span>' : "",
+    d.risque && /lev/i.test(d.risque) ? '<span class="pill bad">Risque élevé</span>' : d.risque && /moy/i.test(d.risque) ? '<span class="pill mid">Risque moyen</span>' : "",
+    d.prix_juste && d.prix && d.prix < d.prix_juste * 0.97 ? '<span class="pill good">Sous la cote</span>' : "",
+  ].join("");
+  const list = (t, xs) => Array.isArray(xs) && xs.length ? `<strong>${t}</strong><ul>${xs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "";
+  const detail = [
+    d.prix_juste ? `<div>Juste prix estimé : <strong class="mono">${fmtEur(d.prix_juste)}</strong></div>` : "",
+    d.cout_annuel ? `<div>Coût annuel estimé : <strong class="mono">${fmtEur(d.cout_annuel)}</strong></div>` : "",
+    d.risque ? `<div>Risque d'arnaque : ${esc(d.risque)}</div>` : "",
+    list("Points forts", d.points_forts), list("Points faibles", d.points_faibles),
+    list("Questions à poser", d.questions_vendeur),
+    d.feedback ? `<div class="muted">Votre avis : ${esc(d.feedback)}</div>` : "",
+  ].join("");
+  const rejecting = S.rejectFor === id;
+  return `<article class="panel listing ${d.statut === "rejetee" ? "rejetee" : ""}" data-id="${esc(id)}">
+    <div class="stack" style="gap:6px">
+      <div class="row">${pills}<span class="small muted">${esc(d.source || "")}${d.vendeur ? " · " + esc(d.vendeur) : ""}</span></div>
+      <h3>${esc(d.titre || "Annonce")}</h3>
+      <div class="figures"><div class="figure"><b>${fmtEur(d.prix)}</b><small>Prix</small></div><div class="figure"><b>${fmtKm(d.km)}</b><small>Compteur</small></div>${d.annee ? `<div class="figure"><b>${esc(d.annee)}</b><small>Année</small></div>` : ""}</div>
+      ${meta ? `<div class="small muted">${meta}</div>` : ""}
+    </div>
+    ${scoreBadge(d.score)}
+    ${d.verdict ? `<div class="span">${esc(d.verdict)}</div>` : ""}
+    ${d.conseil ? `<div class="span"><strong>À faire :</strong> ${esc(d.conseil)}</div>` : ""}
+    ${!compact && detail ? `<details class="span"><summary>Analyse de l'équipe</summary><div class="stack small" style="margin-top:8px">${detail}</div></details>` : ""}
+    ${rejecting ? `<form class="inline-form span" data-form="reject" data-id="${esc(id)}">
+        <label class="field" for="raison-${esc(id)}">Pourquoi l'écarter ? Le chef s'en souviendra.</label>
+        <input type="text" id="raison-${esc(id)}" name="raison" placeholder="Trop de kilomètres, couleur, trop loin…">
+        <div class="row"><button class="btn primary sm" type="submit">Écarter</button><button class="btn sm" type="button" data-act="cancel-reject">Annuler</button></div>
+      </form>` : `<div class="row span">
+        ${url ? `<a class="btn primary sm" href="${esc(url)}" target="_blank" rel="noopener">Voir l'annonce</a>` : ""}
+        ${d.statut === "favori" ? `<button class="btn sm" data-act="unfav">Retirer des favoris</button>` : `<button class="btn sm" data-act="fav">Garder</button>`}
+        ${d.statut === "rejetee" ? `<button class="btn sm" data-act="restore">Rétablir</button>` : `<button class="btn sm ghost" data-act="reject">Écarter</button>`}
+        <button class="btn sm ghost" data-act="ask" data-titre="${esc(d.titre || "")}">Demander au chef</button>
+      </div>`}
+  </article>`;
+}
+
+function viewAccueil() {
+  const last = S.rapports[0]?.data;
+  const r = reglages();
+  const top = S.annonces.filter((a) => a.data.statut !== "rejetee" && isFinite(Number(a.data.score))).sort((a, b) => b.data.score - a.data.score).slice(0, 3);
+  const pending = S.demandes.filter((d) => d.data.statut === "en_attente");
+  const fire = S.mcp && S.systeme.trigger_id;
+  const fireMsg = { envoi: "Envoi de la demande…", ok: "C'est parti : la mission tourne dans le cloud. Les résultats arrivent ici d'ici 10 à 20 minutes.", indispo: "Le lancement manuel n'est pas autorisé ici. La mission automatique tourne quand même.", erreur: "Le lancement n'a pas fonctionné. La mission automatique tourne quand même." }[S.fireState] || "";
+  return `${bandeau()}
+  <div class="page-head"><div class="stack" style="gap:6px"><span class="eyebrow">${esc(fmtDate(nowIso()))}</span><h1>${profil().prenom ? "Bonjour " + esc(profil().prenom) : "Votre recherche de voiture"}</h1></div></div>
+  ${profilVide() ? `<section class="panel" style="border-color:var(--accent)">
+      <h2>Pour commencer</h2>
+      <p style="margin:0">Votre équipe d'agents est prête. Dites au chef ce que vous cherchez (budget, ville, usage) ou remplissez votre profil : la recherche automatique démarre dès que votre ville ou votre budget est connu.</p>
+      <div class="row"><button class="btn primary" data-tab="chef">Parler au chef</button><button class="btn" data-tab="profil">Remplir mon profil</button></div>
+    </section>` : ""}
+  <section class="panel">
+    <div class="row spread">
+      <div class="stack" style="gap:2px">
+        <span class="eyebrow">Mission automatique</span>
+        <strong>${r.pause ? "En pause" : ({ quotidienne: "Chaque jour vers 8 h", tous_les_2_jours: "Tous les 2 jours vers 8 h", hebdomadaire: "Chaque semaine" }[r.frequence] || "Chaque jour vers 8 h")}</strong>
+        <span class="small muted">${last ? "Dernière : " + esc(fmtDateTime(last.date)) + (last.nb_nouvelles != null ? " · " + last.nb_nouvelles + " nouvelle(s) annonce(s)" : "") : "Aucune mission pour l'instant."}</span>
+      </div>
+      ${fire ? `<button class="btn primary" data-act="fire" ${S.fireState === "envoi" ? "disabled" : ""}>Chercher maintenant</button>` : ""}
+    </div>
+    ${fireMsg ? `<div class="notice info">${esc(fireMsg)}</div>` : ""}
+    ${pending.length ? `<div class="small muted">Demandes pour la prochaine mission : ${pending.map((d) => "« " + esc(d.data.texte) + " »").join(", ")}</div>` : ""}
+  </section>
+  ${last ? `<section class="panel">
+      <span class="eyebrow">Rapport du chef</span>
+      ${last.statut === "profil_incomplet" ? `<div class="notice">Profil trop vide pour chercher : complétez-le ou parlez au chef.</div>` : ""}
+      <div>${rich(last.resume || "")}</div>
+      ${(last.modeles_conseilles || []).length ? `<div class="row">${last.modeles_conseilles.map((m) => `<span class="chip">${esc(m)}</span>`).join("")}</div>` : ""}
+      ${(last.questions || []).length ? `<div class="stack"><strong>Le chef aimerait savoir</strong>${last.questions.map((q) => `<div class="row spread"><span>${esc(q)}</span><button class="btn sm" data-act="answer" data-q="${esc(q)}">Répondre</button></div>`).join("")}</div>` : ""}
+    </section>` : ""}
+  <div class="row spread"><h2>Meilleures pistes</h2>${S.annonces.length ? `<button class="btn sm ghost" data-tab="annonces">Toutes les annonces</button>` : ""}</div>
+  ${top.length ? top.map((a) => annonceCard(a, true)).join("") : `<div class="empty">${S.loaded ? "Les annonces trouvées par l'équipe apparaîtront ici, notées sur 100." : "Chargement de vos données…"}</div>`}`;
+}
+
+function viewAnnonces() {
+  const f = S.filtreAnnonces;
+  const list = S.annonces.filter((a) => f === "actives" ? a.data.statut !== "rejetee" : a.data.statut === f)
+    .sort((a, b) => (Number(b.data.score) || -1) - (Number(a.data.score) || -1));
+  const btn = (k, l) => `<button data-fa="${k}" aria-pressed="${f === k}">${l}</button>`;
+  return `${bandeau()}
+  <div class="page-head"><h1>Annonces</h1><div class="seg" role="group" aria-label="Filtrer">${btn("actives", "À étudier")}${btn("favori", "Favoris")}${btn("nouvelle", "Nouvelles")}${btn("rejetee", "Écartées")}</div></div>
+  ${list.length ? list.map((a) => annonceCard(a, false)).join("") : `<div class="empty">${f === "favori" ? "Touchez « Garder » sur une annonce pour la retrouver ici." : f === "rejetee" ? "Aucune annonce écartée." : "Aucune annonce pour l'instant : la prochaine mission en apportera."}</div>`}`;
+}
+
+function concessionCard(c) {
+  const d = c.data, id = c.id;
+  const maps = "https://maps.apple.com/?q=" + encodeURIComponent([d.nom, d.adresse, d.ville].filter(Boolean).join(" "));
+  const tel = String(d.telephone || "").trim();
+  const rejecting = S.dealerRejectFor === id;
+  return `<article class="panel" data-cid="${esc(id)}">
+    <div class="row spread">
+      <div class="stack" style="gap:2px">
+        <h3>${esc(d.nom)}</h3>
+        <span class="small muted">${[d.type, d.distance_km != null && d.distance_km !== "" ? Math.round(d.distance_km) + " km" : "", d.ville].filter(Boolean).map(esc).join(" · ")}</span>
+      </div>
+      <div class="row">${d.statut === "suivie" ? '<span class="pill good">Suivie</span>' : d.statut === "ignoree" ? '<span class="pill bad">Écartée</span>' : '<span class="pill info">Nouvelle</span>'}${d.note_avis ? `<span class="chip mono">★ ${esc(String(d.note_avis).replace(".", ","))}${d.nb_avis ? " · " + esc(d.nb_avis) + " avis" : ""}</span>` : ""}</div>
+    </div>
+    ${(d.marques || []).length ? `<div class="row">${d.marques.map((m) => `<span class="chip">${esc(m)}</span>`).join("")}</div>` : ""}
+    ${d.adresse ? `<div class="small">${esc(d.adresse)}${d.ville ? ", " + esc(d.ville) : ""}</div>` : ""}
+    ${tel ? `<div class="row small"><span class="muted">Téléphone</span><span class="copyable">${esc(tel)}</span><button class="btn sm ghost" data-act="copy" data-text="${esc(tel)}">Copier</button></div>` : ""}
+    ${d.commentaire ? `<div class="small">${esc(d.commentaire)}</div>` : ""}
+    ${d.notes ? `<div class="small muted">Votre note : ${esc(d.notes)}</div>` : ""}
+    ${rejecting ? `<form class="inline-form" data-form="dreject" data-id="${esc(id)}">
+        <label class="field" for="draison-${esc(id)}">Pourquoi l'écarter ?</label>
+        <input type="text" id="draison-${esc(id)}" name="raison" placeholder="Trop loin, mauvais accueil…">
+        <div class="row"><button class="btn primary sm" type="submit">Écarter</button><button class="btn sm" type="button" data-act="cancel-dreject">Annuler</button></div>
+      </form>` : `<div class="row">
+        ${safeUrl(d.url_stock) ? `<a class="btn primary sm" href="${esc(d.url_stock)}" target="_blank" rel="noopener">Voir le stock</a>` : ""}
+        ${safeUrl(d.site) ? `<a class="btn sm" href="${esc(d.site)}" target="_blank" rel="noopener">Site</a>` : ""}
+        <a class="btn sm" href="${esc(maps)}" target="_blank" rel="noopener">Itinéraire</a>
+        ${d.statut === "suivie" ? `<button class="btn sm" data-act="dunfollow">Ne plus suivre</button>` : d.statut === "ignoree" ? `<button class="btn sm" data-act="drestore">Rétablir</button>` : `<button class="btn sm" data-act="dfollow">Suivre</button>`}
+        ${d.statut !== "ignoree" ? `<button class="btn sm ghost" data-act="dreject">Écarter</button>` : `<button class="btn sm ghost" data-act="ddelete">Supprimer</button>`}
+      </div>`}
+  </article>`;
+}
+
+function viewConcessions() {
+  const f = S.filtreConcessions;
+  const order = { suivie: 0, nouvelle: 1, ignoree: 2 };
+  const list = S.concessions.filter((c) => f === "actives" ? c.data.statut !== "ignoree" : c.data.statut === f)
+    .sort((a, b) => (order[a.data.statut] ?? 1) - (order[b.data.statut] ?? 1) || (Number(a.data.distance_km) || 999) - (Number(b.data.distance_km) || 999));
+  const btn = (k, l) => `<button data-fc="${k}" aria-pressed="${f === k}">${l}</button>`;
+  const r = reglages();
+  return `${bandeau()}
+  <div class="page-head"><h1>Concessions de mon secteur</h1><div class="seg" role="group" aria-label="Filtrer">${btn("actives", "Toutes")}${btn("suivie", "Suivies")}${btn("ignoree", "Écartées")}</div></div>
+  <section class="panel">
+    <p style="margin:0">Le repéreur de l'équipe recense les concessions et garages sérieux autour de ${esc(profil().localisation || "chez vous")}${profil().rayon_km ? " (" + esc(profil().rayon_km) + " km)" : ""}, pour les marques qui vous intéressent. Le chasseur d'annonces fouille ensuite le stock des concessions que vous suivez.</p>
+    <div class="row">
+      <button class="btn primary" data-act="ask-dealers">Demander une recherche de concessions</button>
+      <button class="btn" data-act="toggle-add">${S.addDealerOpen ? "Fermer" : "Ajouter une concession"}</button>
+    </div>
+    ${!r.concessions ? `<div class="notice">Le repéreur de concessions est désactivé dans Profil → Agents.</div>` : ""}
+    ${S.addDealerOpen ? `<form class="inline-form" data-form="add-dealer">
+      <div class="grid-2">
+        <label class="field" for="ad-nom">Nom<input type="text" id="ad-nom" name="nom" required placeholder="Garage du Centre"></label>
+        <label class="field" for="ad-ville">Ville<input type="text" id="ad-ville" name="ville" required placeholder="Villeurbanne"></label>
+        <label class="field" for="ad-tel">Téléphone<input type="text" id="ad-tel" name="telephone" inputmode="tel"></label>
+        <label class="field" for="ad-site">Site web<input type="text" id="ad-site" name="site" inputmode="url" placeholder="garage-centre.fr"></label>
+      </div>
+      <label class="field" for="ad-marques">Marques (séparées par des virgules)<input type="text" id="ad-marques" name="marques"></label>
+      <label class="field" for="ad-com">Note perso<input type="text" id="ad-com" name="commentaire" placeholder="Vendeur sympa, a une Yaris en stock…"></label>
+      <div class="row"><button class="btn primary" type="submit">Ajouter</button></div>
+    </form>` : ""}
+  </section>
+  ${list.length ? list.map(concessionCard).join("") : `<div class="empty">${f === "actives" ? "Aucune concession pour l'instant. La prochaine mission en cherchera autour de chez vous, ou ajoutez-en une." : "Rien ici."}</div>`}`;
+}
+
+function viewChef() {
+  const msgs = S.chat.map((m) => `<div class="msg ${m.role === "user" ? "user" : "assistant"}">${m.role === "user" ? esc(m.content).replace(/\n/g, "<br>") : rich(m.content)}</div>`).join("");
+  const intro = `<div class="msg assistant">${rich("Bonjour ! Je suis le chef de votre équipe. Dites-moi ce que vous cherchez — budget, ville, usage, envies — et je m'occupe du reste. Vous pouvez aussi me demander : **« Laquelle de mes annonces appeler en premier ? »** ou **« Que vérifier pendant l'essai ? »**")}</div>`;
+  const unavailable = !S.sample;
+  return `${bandeau()}
+  <div class="page-head"><h1>Le chef</h1>${S.chat.length ? `<button class="btn sm ghost" data-act="clear-chat">Effacer la conversation</button>` : ""}</div>
+  <div class="chat">
+    <div class="log" id="log">${intro}${msgs}
+      ${S.chatBusy ? `<div class="msg assistant" id="streaming">${S.streaming ? rich(S.streaming) : '<span class="thinking">Le chef réfléchit…</span>'}</div>` : ""}
+      ${S.chatError ? `<div class="msg note">${esc(S.chatError)}</div>` : ""}
+    </div>
+    <form class="composer" data-form="chat">
+      <label for="chat-input" class="eyebrow" hidden>Message au chef</label>
+      <textarea id="chat-input" name="message" rows="1" placeholder="${unavailable ? "Le chat n'est pas disponible ici" : "Écrivez au chef…"}" ${unavailable ? "disabled" : ""}>${esc(S.draft || "")}</textarea>
+      ${S.chatBusy ? `<button class="btn" type="button" data-act="stop">Arrêter</button>` : `<button class="btn primary" type="submit" ${unavailable ? "disabled" : ""}>Envoyer</button>`}
+    </form>
+    <p class="small muted" style="margin:0">Le chef répond avec votre abonnement Claude. Il ne cherche pas sur le web lui-même : il confie les recherches à la prochaine mission de l'équipe.</p>
+  </div>`;
+}
+
+function viewProfil() {
+  const p = profil(), r = reglages();
+  const checks = (name, opts) => `<div class="checks">${opts.map((o) => `<label><input type="checkbox" name="${name}" value="${esc(o)}" ${(p[name] || []).includes(o) ? "checked" : ""}> ${esc(o)}</label>`).join("")}</div>`;
+  const sel = (name, opts) => `<select id="pf-${name}" name="${name}">${opts.map((o) => `<option ${p[name] === o ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+  const num = (name, step) => `<input type="number" id="pf-${name}" name="${name}" step="${step}" value="${p[name] ?? ""}" inputmode="numeric">`;
+  const csv = (name, ph) => `<input type="text" id="pf-${name}" name="${name}" data-csv value="${esc((p[name] || []).join(", "))}" placeholder="${esc(ph || "")}">`;
+  const agent = (k, label) => `<label><input type="checkbox" name="agent_${k}" ${r[k] ? "checked" : ""}> ${label}</label>`;
+  return `${bandeau()}
+  <div class="page-head"><h1>Profil & réglages</h1></div>
+  <form class="panel" data-form="profil">
+    <h2>Mon profil d'acheteur</h2>
+    <p class="small muted" style="margin:0">Tout est mémorisé. Le chef et les agents s'en servent à chaque mission.</p>
+    <div class="grid-2">
+      <label class="field" for="pf-prenom">Prénom<input type="text" id="pf-prenom" name="prenom" value="${esc(p.prenom)}"></label>
+      <label class="field" for="pf-localisation">Ville ou code postal<input type="text" id="pf-localisation" name="localisation" value="${esc(p.localisation)}" placeholder="Lyon, 69003…"></label>
+      <label class="field" for="pf-rayon_km">Rayon de recherche (km)${num("rayon_km", 10)}</label>
+      <label class="field" for="pf-budget_max">Budget maximum (€)${num("budget_max", 500)}</label>
+      <label class="field" for="pf-budget_ideal">Budget idéal (€)${num("budget_ideal", 500)}</label>
+      <label class="field" for="pf-financement">Financement${sel("financement", ["comptant", "crédit", "LOA", "LLD", "à définir"])}</label>
+      <label class="field" for="pf-usage">Usage principal${sel("usage", ["mixte", "ville", "route", "autoroute"])}</label>
+      <label class="field" for="pf-km_par_an">Kilomètres par an${num("km_par_an", 1000)}</label>
+      <label class="field" for="pf-nb_places">Places minimum${num("nb_places", 1)}</label>
+      <label class="field" for="pf-annee_min">Année minimum${num("annee_min", 1)}</label>
+      <label class="field" for="pf-km_max">Compteur maximum (km)${num("km_max", 5000)}</label>
+      <label class="field" for="pf-boite">Boîte${sel("boite", ["peu importe", "manuelle", "automatique"])}</label>
+      <label class="field" for="pf-vendeur">Vendeur${sel("vendeur", ["peu importe", "particulier", "professionnel"])}</label>
+    </div>
+    <div class="stack"><span class="eyebrow">Carrosserie</span>${checks("carrosseries", ["citadine", "compacte", "berline", "break", "SUV", "monospace", "coupé / cabriolet", "utilitaire"])}</div>
+    <div class="stack"><span class="eyebrow">Énergie</span>${checks("energies", ["essence", "diesel", "hybride", "hybride rechargeable", "électrique", "GPL / E85"])}</div>
+    <div class="grid-2">
+      <label class="field" for="pf-modeles_envisages">Modèles envisagés${csv("modeles_envisages", "Yaris, Clio 5, 208…")}</label>
+      <label class="field" for="pf-marques_preferees">Marques préférées${csv("marques_preferees")}</label>
+      <label class="field" for="pf-marques_exclues">Marques exclues${csv("marques_exclues")}</label>
+      <label class="field" for="pf-equipements">Équipements indispensables${csv("equipements", "CarPlay, caméra de recul…")}</label>
+    </div>
+    <label class="field" for="pf-redhibitoires">Critères rédhibitoires${csv("redhibitoires", "première main uniquement, pas de diesel…")}</label>
+    <label class="field" for="pf-notes">Tout ce qui compte pour vous<textarea id="pf-notes" name="notes" rows="3" placeholder="Trajets, enfants, chien, coffre pour le vélo, style…">${esc(p.notes)}</textarea></label>
+    <div class="row"><button class="btn primary" type="submit" ${S.canWrite ? "" : "disabled"}>Enregistrer le profil</button><span class="small muted" id="pf-saved"></span></div>
+  </form>
+
+  <form class="panel" data-form="reglages">
+    <h2>Mission automatique</h2>
+    <div class="grid-2">
+      <label class="field" for="rg-frequence">Fréquence<select id="rg-frequence" name="frequence">
+        ${[["quotidienne", "Chaque jour"], ["tous_les_2_jours", "Tous les 2 jours"], ["hebdomadaire", "Chaque semaine"]].map(([v, l]) => `<option value="${v}" ${r.frequence === v ? "selected" : ""}>${l}</option>`).join("")}
+      </select></label>
+      <label class="field" for="rg-seuil">Signaler les annonces à partir de (score)<input type="number" id="rg-seuil" name="seuil_alerte" min="40" max="95" step="5" value="${esc(r.seuil_alerte)}"></label>
+    </div>
+    <div class="checks"><label><input type="checkbox" name="pause" ${r.pause ? "checked" : ""}> Mettre la recherche en pause</label></div>
+    <div class="stack"><span class="eyebrow">Agents de l'équipe</span>
+      <div class="checks"><label><input type="checkbox" checked disabled> Chasseur d'annonces</label>${agent("concessions", "Repéreur de concessions")}${agent("prix", "Analyste prix")}${agent("fiabilite", "Expert fiabilité")}${agent("couts", "Comptable auto")}${agent("verif", "Détective anti-arnaque")}</div>
+      <span class="small muted">Moins d'agents = des missions plus courtes, qui consomment moins votre abonnement.</span>
+    </div>
+    <div class="row"><button class="btn primary" type="submit" ${S.canWrite ? "" : "disabled"}>Enregistrer</button><span class="small muted" id="rg-saved"></span></div>
+  </form>
+
+  <section class="panel">
+    <h2>Ce que le chef a retenu</h2>
+    <form class="row" data-form="memo"><input type="text" id="memo-input" name="note" placeholder="Ajouter une info à retenir…" style="flex:1;min-width:0"><button class="btn" type="submit">Ajouter</button></form>
+    ${S.memoire.length ? `<ul class="memory">${S.memoire.map((m) => `<li><span>${esc(m.data.note)} <span class="small muted">· ${esc(m.data.source || "")}</span></span><button class="btn sm ghost" data-act="forget" data-mid="${esc(m.id)}" aria-label="Oublier">Oublier</button></li>`).join("")}</ul>` : `<div class="small muted">Rien pour l'instant : discutez avec le chef ou notez vos annonces.</div>`}
+  </section>`;
+}
+
+// ---------------------------------------------------------------- événements
+document.addEventListener("click", async (ev) => {
+  const t = ev.target.closest("[data-tab],[data-act],[data-fa],[data-fc]");
+  if (!t) return;
+  if (t.dataset.tab) return setTab(t.dataset.tab);
+  if (t.dataset.fa) { S.filtreAnnonces = t.dataset.fa; return render(); }
+  if (t.dataset.fc) { S.filtreConcessions = t.dataset.fc; return render(); }
+  const act = t.dataset.act;
+  const card = t.closest("[data-id]"), dcard = t.closest("[data-cid]");
+  try {
+    if (act === "fire") return lancerMaintenant();
+    if (act === "fav") return await setAnnonceStatut(card.dataset.id, "favori");
+    if (act === "unfav" || act === "restore") return await setAnnonceStatut(card.dataset.id, "vue");
+    if (act === "reject") { S.rejectFor = card.dataset.id; render(); $("#raison-" + CSS.escape(card.dataset.id))?.focus(); return; }
+    if (act === "cancel-reject") { S.rejectFor = null; return render(); }
+    if (act === "ask") { S.draft = `À propos de l'annonce « ${t.dataset.titre} » : `; return setTab("chef"); }
+    if (act === "answer") { S.draft = `À propos de « ${t.dataset.q} » : `; return setTab("chef"); }
+    if (act === "dfollow") return await setConcessionStatut(dcard.dataset.cid, "suivie");
+    if (act === "dunfollow" || act === "drestore") return await setConcessionStatut(dcard.dataset.cid, "nouvelle");
+    if (act === "dreject") { S.dealerRejectFor = dcard.dataset.cid; render(); $("#draison-" + CSS.escape(dcard.dataset.cid))?.focus(); return; }
+    if (act === "cancel-dreject") { S.dealerRejectFor = null; return render(); }
+    if (act === "ddelete") return await remove("concessions/" + dcard.dataset.cid);
+    if (act === "toggle-add") { S.addDealerOpen = !S.addDealerOpen; return render(); }
+    if (act === "ask-dealers") { S.draft = "Trouve-moi les concessions sérieuses de mon secteur pour "; return setTab("chef"); }
+    if (act === "copy") {
+      try { await navigator.clipboard.writeText(t.dataset.text); t.textContent = "Copié"; }
+      catch { const s = t.parentElement.querySelector(".copyable"); const range = document.createRange(); range.selectNodeContents(s); getSelection().removeAllRanges(); getSelection().addRange(range); }
+      return;
+    }
+    if (act === "stop") { S.chatCtl?.abort(); return; }
+    if (act === "clear-chat") { S.chat = []; S.chatError = ""; await saveChat(); return render(); }
+    if (act === "forget") return await remove("memoire/" + t.dataset.mid);
+  } catch (e) { S.toast = e.message; showToast(); }
+});
+
+document.addEventListener("submit", async (ev) => {
+  const f = ev.target.closest("form[data-form]");
+  if (!f) return;
+  ev.preventDefault();
+  const kind = f.dataset.form;
+  try {
+    if (kind === "chat") {
+      const box = $("#chat-input");
+      const text = box.value;
+      S.draft = "";
+      box.value = "";
+      return envoyerChat(text);
+    }
+    if (kind === "reject") { const id = f.dataset.id; S.rejectFor = null; return await setAnnonceStatut(id, "rejetee", f.raison.value.trim()); }
+    if (kind === "dreject") { const id = f.dataset.id; S.dealerRejectFor = null; return await setConcessionStatut(id, "ignoree", f.raison.value.trim()); }
+    if (kind === "add-dealer") {
+      await addConcession({ nom: f.nom.value, ville: f.ville.value, telephone: f.telephone.value.trim(), site: f.site.value.trim(), marques: f.marques.value, commentaire: f.commentaire.value.trim() });
+      S.addDealerOpen = false;
+      S.filtreConcessions = "actives";
+      return render();
+    }
+    if (kind === "memo") { await addMemory(f.note.value, "vous"); f.reset(); return; }
+    if (kind === "profil") {
+      const patch = {};
+      for (const el of f.elements) {
+        if (!el.name || el.type === "checkbox") continue;
+        if (el.dataset.csv !== undefined) patch[el.name] = el.value.split(",").map((s) => s.trim()).filter(Boolean);
+        else if (el.type === "number") patch[el.name] = el.value === "" ? null : Number(el.value);
+        else patch[el.name] = el.value.trim();
+      }
+      patch.carrosseries = $$('input[name="carrosseries"]:checked', f).map((i) => i.value);
+      patch.energies = $$('input[name="energies"]:checked', f).map((i) => i.value);
+      await saveProfil(patch);
+      const s = $("#pf-saved"); if (s) s.textContent = "Profil enregistré.";
+      return;
+    }
+    if (kind === "reglages") {
+      const next = {
+        ...reglages(), frequence: f.frequence.value, seuil_alerte: Number(f.seuil_alerte.value) || 75, pause: f.pause.checked,
+        concessions: f.agent_concessions.checked, prix: f.agent_prix.checked, fiabilite: f.agent_fiabilite.checked,
+        couts: f.agent_couts.checked, verif: f.agent_verif.checked, maj: nowIso(),
+      };
+      await write("config/reglages", next);
+      const s = $("#rg-saved"); if (s) s.textContent = "Réglages enregistrés.";
+    }
+  } catch (e) { S.toast = e.message; showToast(); }
+});
+
+document.addEventListener("input", (ev) => {
+  if (ev.target.id === "chat-input") {
+    S.draft = ev.target.value;
+    ev.target.style.height = "";
+    ev.target.style.height = Math.min(ev.target.scrollHeight, 180) + "px";
+  }
+});
+document.addEventListener("keydown", (ev) => {
+  if (ev.target.id === "chat-input" && ev.key === "Enter" && !ev.shiftKey && !/iPhone|iPad|Android/.test(navigator.userAgent) && !navigator.maxTouchPoints) {
+    ev.preventDefault();
+    ev.target.form.requestSubmit();
+  }
+});
+window.addEventListener("hashchange", () => setTab(location.hash.slice(1)));
+
+function showToast() {
+  let el = $("#toast");
+  if (!el) { el = document.createElement("div"); el.id = "toast"; el.className = "notice"; el.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:9;max-width:90vw"; document.body.append(el); }
+  el.textContent = S.toast;
+  el.hidden = false;
+  clearTimeout(showToast.t);
+  showToast.t = setTimeout(() => { el.hidden = true; }, 4000);
+}
+
+// ---------------------------------------------------------------- données
+function docsOf(snap) { return snap.docs.filter((d) => d.exists).map((d) => ({ id: d.id, data: d.data() || {} })); }
+
+async function boot() {
+  const initial = location.hash.slice(1) || store.get("voiture-tab") || "accueil";
+  S.tab = TABS.some(([k]) => k === initial) ? initial : "accueil";
+  render();
+  if (!window.claude || !window.claude.use) { S.loaded = true; render(); return; }
+
+  claude.use("sample").then((s) => { S.sample = s; if (S.tab === "chef") render(); });
+  claude.use("mcp").then(async (m) => {
+    if (!m) return;
+    try {
+      const { servers } = await m.listTools("Claude Code Remote");
+      const srv = servers.find((x) => x.server === "Claude Code Remote");
+      if (srv && srv.tools.some((t) => t.name === "fire_trigger")) { S.mcp = m; render(); }
+    } catch {}
+  });
+  claude.use("user").then(async (u) => {
+    if (!u) return;
+    try { const ok = await u.can("data.write"); if (ok === false) { S.canWrite = false; render(); } } catch {}
+  });
+
+  const db = await claude.use("db");
+  if (!db) { S.loaded = true; render(); return; }
+  S.db = db;
+  const timer = setTimeout(() => { S.slow = true; render(); }, 10000);
+  const done = (meta) => { if (!meta || !meta.fromCache) { clearTimeout(timer); S.loaded = true; S.slow = false; } };
+  const onErr = () => { clearTimeout(timer); S.loaded = true; render(); };
+  let pending = null;
+  const schedule = () => { if (pending) return; pending = requestAnimationFrame(() => { pending = null; if (!(S.tab === "chef" && S.chatBusy)) render(); }); };
+  const focusSafe = () => {
+    const a = document.activeElement;
+    if (a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.tagName === "SELECT") && a.closest("form[data-form='profil'],form[data-form='reglages'],form[data-form='add-dealer'],form[data-form='reject'],form[data-form='dreject']")) return false;
+    return true;
+  };
+  const sched = () => { if (focusSafe()) schedule(); };
+
+  db.doc("config/profil").onSnapshot((d) => { S.profil = d.exists ? d.data() : {}; done(d.metadata); sched(); }, onErr);
+  db.doc("config/reglages").onSnapshot((d) => { S.reglages = d.exists ? d.data() : {}; sched(); }, onErr);
+  db.doc("config/systeme").onSnapshot((d) => { S.systeme = d.exists ? d.data() : {}; sched(); }, onErr);
+  db.doc("chat/historique").onSnapshot((d) => {
+    if (S.chatBusy) return;
+    const turns = d.exists && Array.isArray(d.data().turns) ? d.data().turns.filter((t) => t && (t.role === "user" || t.role === "assistant") && t.content) : [];
+    S.chat = turns.map((t) => ({ role: t.role, content: String(t.content) }));
+    sched();
+  }, onErr);
+  db.collection("annonces").limit(400).onSnapshot((s) => { S.annonces = docsOf(s); done(s.metadata); sched(); }, onErr);
+  db.collection("concessions").limit(200).onSnapshot((s) => { S.concessions = docsOf(s); sched(); }, onErr);
+  db.collection("memoire").orderBy("ts", "desc").limit(200).onSnapshot((s) => { S.memoire = docsOf(s); sched(); }, onErr);
+  db.collection("rapports").orderBy("date", "desc").limit(20).onSnapshot((s) => { S.rapports = docsOf(s); sched(); }, onErr);
+  db.collection("demandes").orderBy("ts", "desc").limit(50).onSnapshot((s) => { S.demandes = docsOf(s); sched(); }, onErr);
+}
+boot();
+</script>
