@@ -38,12 +38,15 @@ def search_url(args, page: int) -> str:
     path = "/lst"
     if args.garage:
         path = f"/garages/{args.garage}"
-    elif args.marque:
-        path += f"/{args.marque}" + (f"/{args.modele}" if args.modele else "")
     q = {"atype": "C", "cy": "F", "sort": "standard", "desc": "0", "ustate": "N,U", "page": str(page)}
-    if not args.garage and not args.marque:
-        # Avec un filtre marque/modèle, AutoScout24 ignore la zone : on filtre ensuite par département.
+    if not args.garage:
         q.update({"zip": args.zip, "zipr": str(args.rayon)})
+        if args.marque:
+            # Marque et modèle passent par leurs identifiants AutoScout24, seule façon de garder le rayon.
+            make_id, model_id = taxonomy_ids(args.marque, args.modele)
+            q["mmvmk0"] = make_id
+            if model_id:
+                q["mmvmd0"] = model_id
     if args.prix_max:
         q["priceto"] = str(args.prix_max)
     if args.annee_min:
@@ -51,6 +54,34 @@ def search_url(args, page: int) -> str:
     if args.km_max:
         q["kmto"] = str(args.km_max)
     return BASE + path + "?" + urllib.parse.urlencode(q)
+
+
+_TAXO: dict = {}
+
+
+def taxonomy_ids(marque: str, modele: str | None) -> tuple[str, str | None]:
+    """Identifiants AutoScout24 de la marque (et du modèle), lus sur une page de résultats nationale."""
+    key = (marque, modele)
+    if key in _TAXO:
+        return _TAXO[key]
+    path = f"/lst/{marque}" + (f"/{modele}" if modele else "")
+    _, html = fetch(BASE + path + "?atype=C&cy=F")
+    m = NEXT_DATA.search(html)
+    listings = (json.loads(m.group(1))["props"]["pageProps"].get("listings") or []) if m else []
+    make_id = model_id = None
+    for it in listings:
+        taxo = (it.get("tracking") or {}).get("modelTaxonomy") or ""
+        r = re.search(r"make_id:(\d+)", taxo)
+        if r:
+            make_id = r.group(1)
+            if modele:
+                model_id = str((it.get("vehicle") or {}).get("modelId") or "") or None
+            break
+    if not make_id:
+        raise SystemExit(f"Marque/modèle inconnu sur AutoScout24 : {path}")
+    time.sleep(1)
+    _TAXO[key] = (make_id, model_id)
+    return _TAXO[key]
 
 
 def big_photo(url: str) -> str:
@@ -104,9 +135,6 @@ def collect(args) -> list[dict]:
                 n = normalize(it)
             except Exception:
                 continue
-            dep = (n["localisation"] or "")[:2]
-            if args.marque and args.departements and dep not in args.departements:
-                continue
             if n["url"] and n["url"] not in seen:
                 seen.add(n["url"])
                 out.append(n)
@@ -157,14 +185,11 @@ def main() -> None:
     p.add_argument("--modele")
     p.add_argument("--garage", help="identifiant de la page vendeur AutoScout24, ex. j-bervas-rennes")
     p.add_argument("--pages", type=int, default=3)
-    p.add_argument("--departements", default="35,22,56,44,53,50,49,29,72,61",
-                   help="départements gardés quand on cherche par marque/modèle (liste séparée par des virgules)")
     p.add_argument("--photo", help="URL d'une photo à télécharger")
     p.add_argument("--out", help="fichier de sortie pour --photo")
     p.add_argument("--verifier", help="URL d'annonce : affiche 'vivante' ou 'retiree'")
     p.add_argument("--detail", help="URL d'annonce : version du moteur, équipements, garantie, photos (JSON)")
     args = p.parse_args()
-    args.departements = {d.strip() for d in (args.departements or "").split(",") if d.strip()}
 
     if args.detail:
         json.dump(detail(args.detail), sys.stdout, ensure_ascii=False, indent=1)
