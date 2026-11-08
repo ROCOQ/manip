@@ -1,0 +1,4 @@
+# Données personnelles (profil, annonces, clés de notification) : jamais dans Git
+data/
+.env
+.venv/
