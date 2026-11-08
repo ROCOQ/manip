@@ -125,6 +125,7 @@ h3 { font-size: 16px; margin: 0; line-height: 1.3; }
 details summary { cursor: pointer; color: var(--accent); font-weight: 600; }
 details ul { margin: 6px 0; padding-left: 20px; }
 .listing.rejetee { opacity: .7; }
+.listing .photo { grid-column: 1 / -1; display: block; width: 100%; max-width: 100%; aspect-ratio: 16 / 10; max-height: 300px; object-fit: cover; border-radius: 10px; background: var(--surface-2); }
 
 .seg { display: inline-flex; gap: 2px; padding: 3px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; flex-wrap: wrap; }
 .seg button { border: 0; background: none; padding: 6px 12px; border-radius: 8px; font-weight: 600; color: var(--muted); cursor: pointer; }
@@ -496,7 +497,9 @@ function annonceCard(a, compact) {
     d.feedback ? `<div class="muted">Votre avis : ${esc(d.feedback)}</div>` : "",
   ].join("");
   const rejecting = S.rejectFor === id;
+  const photo = /^(https:\/\/|\/)/.test(String(d.photo || "")) ? String(d.photo) : "";
   return `<article class="panel listing ${d.statut === "rejetee" ? "rejetee" : ""}" data-id="${esc(id)}">
+    ${photo ? `<img class="photo" src="${esc(photo)}" alt="Photo de l'annonce ${esc(d.titre || "")}" loading="lazy">` : ""}
     <div class="stack" style="gap:6px">
       <div class="row">${pills}<span class="small muted">${esc(d.source || "")}${d.vendeur ? " · " + esc(d.vendeur) : ""}</span></div>
       <h3>${esc(d.titre || "Annonce")}</h3>
@@ -552,6 +555,7 @@ function viewAccueil() {
       <div>${rich(last.resume || "")}</div>
       ${(last.modeles_conseilles || []).length ? `<div class="row">${last.modeles_conseilles.map((m) => `<span class="chip">${esc(m)}</span>`).join("")}</div>` : ""}
       ${(last.sites_bloques || []).length ? `<div class="small muted">Sites inaccessibles pendant la mission : ${last.sites_bloques.map(esc).join(", ")}. Les annonces marquées « À vérifier » viennent des résultats de recherche.</div>` : ""}
+      ${(last.photos_bloquees || []).length ? `<div class="small muted">Photos impossibles à récupérer depuis : ${last.photos_bloquees.map(esc).join(", ")}. Ajoutez ces adresses aux « Allowed domains » de l'environnement cloud pour les voir ici.</div>` : ""}
       ${(last.questions || []).length ? `<div class="stack"><strong>Le chef aimerait savoir</strong>${last.questions.map((q) => `<div class="row spread"><span>${esc(q)}</span><button class="btn sm" data-act="answer" data-q="${esc(q)}">Répondre</button></div>`).join("")}</div>` : ""}
     </section>` : ""}
   <div class="row spread"><h2>Meilleures pistes</h2>${S.annonces.length ? `<button class="btn sm ghost" data-tab="annonces">Toutes les annonces</button>` : ""}</div>
@@ -875,5 +879,7 @@ async function boot() {
   db.collection("rapports").orderBy("date", "desc").limit(20).onSnapshot((s) => { S.rapports = docsOf(s); sched(); }, onErr);
   db.collection("demandes").orderBy("ts", "desc").limit(50).onSnapshot((s) => { S.demandes = docsOf(s); sched(); }, onErr);
 }
+// Une photo introuvable disparaît au lieu d'afficher une image cassée.
+document.addEventListener("error", (ev) => { if (ev.target && ev.target.classList && ev.target.classList.contains("photo")) ev.target.remove(); }, true);
 boot();
 </script>
