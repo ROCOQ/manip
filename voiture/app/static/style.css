@@ -102,6 +102,17 @@ legend { font-size: 14px; color: var(--muted); padding: 0 4px; }
 .prose p { margin: 0 0 8px; }
 .prose a { color: var(--accent); }
 
+.switch { display: flex; gap: 8px; margin-bottom: 12px; }
+.switch button { flex: 1; }
+.switch button.active { background: var(--accent); color: var(--accent-text); border-color: transparent; }
+details.card > summary { cursor: pointer; list-style-position: inside; }
+.dealer h3 { margin: 0 0 2px; font-size: 16px; }
+.dealer .meta { color: var(--muted); font-size: 14px; margin: 2px 0; }
+.dealer .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.dealer .actions a, .dealer .actions button { flex: 1; min-width: 92px; text-align: center; text-decoration: none; }
+.dealer .actions a { display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-weight: 600; font-size: 14px; color: var(--text); background: var(--card); min-height: 40px; }
+.dealer .actions a.primary { background: var(--accent); color: var(--accent-text); border-color: transparent; }
+.stars { color: var(--mid); font-weight: 700; }
 .segmented { display: flex; gap: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 4px; margin-bottom: 12px; }
 .segmented button { flex: 1; border: 0; min-height: 34px; padding: 6px 4px; font-size: 14px; background: none; }
 .segmented button.active { background: var(--accent); color: var(--accent-text); }

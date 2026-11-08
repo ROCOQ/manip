@@ -76,13 +76,52 @@
 
     <!-- Annonces -->
     <section id="view-annonces" class="view" hidden>
-      <div class="segmented" role="tablist">
-        <button data-filter="" class="active">Toutes</button>
-        <button data-filter="favori">Favoris</button>
-        <button data-filter="nouvelle">Nouvelles</button>
-        <button data-filter="rejetee">Rejetées</button>
+      <div class="switch" role="tablist">
+        <button data-pane="listings" class="active">🚗 Annonces</button>
+        <button data-pane="dealers">🏢 Concessions</button>
       </div>
-      <div id="listings"></div>
+
+      <div id="pane-listings">
+        <div class="segmented" role="tablist">
+          <button data-filter="" class="active">Toutes</button>
+          <button data-filter="favori">Favoris</button>
+          <button data-filter="nouvelle">Nouvelles</button>
+          <button data-filter="rejetee">Rejetées</button>
+        </div>
+        <div id="listings"></div>
+      </div>
+
+      <div id="pane-dealers" hidden>
+        <div class="card">
+          <h2>Concessions de mon secteur</h2>
+          <p id="dealer-status" class="muted small">Le repéreur cherche les concessions et garages sérieux autour de chez vous, pour les marques qui vous intéressent.</p>
+          <div class="row">
+            <button id="btn-dealers" class="primary">🔎 Trouver les concessions</button>
+            <button data-go="chef" data-prefill="Trouve-moi les concessions de mon secteur pour ">Demander au chef</button>
+          </div>
+        </div>
+        <details class="card" id="dealer-add">
+          <summary><strong>➕ Ajouter une concession que je connais</strong></summary>
+          <form id="dealer-form" class="form">
+            <div class="grid2">
+              <label>Nom <input name="nom" required placeholder="Garage du Centre"></label>
+              <label>Ville <input name="ville" required placeholder="Villeurbanne"></label>
+              <label>Téléphone <input name="telephone" type="tel"></label>
+              <label>Site web <input name="site" inputmode="url" placeholder="garage-centre.fr"></label>
+            </div>
+            <label>Marques <small>(séparées par des virgules)</small><input name="marques" data-csv></label>
+            <label>Adresse <input name="adresse"></label>
+            <label>Note perso <input name="commentaire" placeholder="Vendeur sympa, a une Yaris en stock…"></label>
+            <button class="primary" type="submit">Ajouter</button>
+          </form>
+        </details>
+        <div class="segmented" role="tablist" id="dealer-filter">
+          <button data-dfilter="" class="active">Toutes</button>
+          <button data-dfilter="suivie">Suivies</button>
+          <button data-dfilter="ignoree">Écartées</button>
+        </div>
+        <div id="dealers"></div>
+      </div>
     </section>
 
     <!-- Chef -->

@@ -12,6 +12,8 @@ const store = {
 let token = store.get("voiture-token") || "";
 let currentTab = "accueil";
 let listingFilter = "";
+let pane = "listings";
+let dealerFilter = "";
 let pollTimer = null;
 let lastStatus = null;
 
@@ -61,6 +63,7 @@ function showLogin() {
 }
 
 function go(tab) {
+  if (tab === "concessions") { pane = "dealers"; tab = "annonces"; }
   if (!TABS[tab]) tab = "accueil";
   currentTab = tab;
   $("#login").hidden = true;
@@ -191,7 +194,12 @@ function schedulePoll(ms) {
 
 // ------------------------------------------------------------------ annonces
 async function loadListings() {
-  $$(".segmented button").forEach((b) => b.classList.toggle("active", b.dataset.filter === listingFilter));
+  $$(".switch button").forEach((b) => b.classList.toggle("active", b.dataset.pane === pane));
+  $("#pane-listings").hidden = pane !== "listings";
+  $("#pane-dealers").hidden = pane !== "dealers";
+  $("#title").textContent = pane === "dealers" ? "Concessions" : TABS.annonces;
+  if (pane === "dealers") return loadDealers();
+  $$("[data-filter]").forEach((b) => b.classList.toggle("active", b.dataset.filter === listingFilter));
   const q = listingFilter ? `?statut=${encodeURIComponent(listingFilter)}` : "";
   const listings = await api(`/api/listings${q}`);
   renderListings($("#listings"), listings, listingFilter === "favori"
@@ -246,6 +254,106 @@ function renderListings(root, listings, emptyText) {
       go(currentTab);
     } catch (e) { alert(e.message); }
   }));
+}
+
+// ------------------------------------------------------------------ concessions
+function stars(note, nb) {
+  if (note == null) return "";
+  return `<span class="stars">★ ${String(note).replace(".", ",")}</span>${nb ? ` <span class="muted small">(${nb} avis)</span>` : ""}`;
+}
+
+async function loadDealers() {
+  $$("[data-dfilter]").forEach((b) => b.classList.toggle("active", b.dataset.dfilter === dealerFilter));
+  const q = dealerFilter ? `?statut=${encodeURIComponent(dealerFilter)}` : "";
+  const data = await api(`/api/dealers${q}`);
+  const btn = $("#btn-dealers"), status = $("#dealer-status");
+  btn.disabled = data.recherche_en_cours;
+  if (data.recherche_en_cours) {
+    status.textContent = "Le repéreur cherche les concessions de votre secteur… (1 à 3 minutes)";
+  } else if (data.derniere_recherche) {
+    const d = data.derniere_recherche;
+    status.textContent = d.erreur ? `Dernière recherche en échec : ${d.synthese || ""}`
+      : `${d.nouvelles} nouvelle(s) concession(s) à la dernière recherche. ${d.synthese || ""}`;
+  }
+  renderDealers(data.concessions);
+  if (data.recherche_en_cours) {
+    clearTimeout(pollTimer);
+    pollTimer = setTimeout(() => currentTab === "annonces" && pane === "dealers" && loadDealers(), 5000);
+  }
+}
+
+function renderDealers(dealers) {
+  const root = $("#dealers");
+  if (!dealers.length) {
+    root.innerHTML = `<p class="empty">${dealerFilter ? "Aucune concession ici." : "Aucune concession pour l'instant : touchez « Trouver les concessions » ou ajoutez-en une."}</p>`;
+    return;
+  }
+  const safe = (u) => (/^https?:\/\//.test(u || "") ? u : null);
+  root.innerHTML = dealers.map((d) => {
+    const place = [d.adresse, d.ville].filter(Boolean).join(", ");
+    const maps = `https://maps.apple.com/?q=${encodeURIComponent([d.nom, d.adresse, d.ville].filter(Boolean).join(" "))}`;
+    const tel = (d.telephone || "").replace(/[^+\d]/g, "");
+    const links = [
+      tel ? `<a class="primary" href="tel:${esc(tel)}">📞 Appeler</a>` : "",
+      safe(d.url_stock) ? `<a href="${esc(d.url_stock)}" target="_blank" rel="noopener">🚗 Stock</a>` : "",
+      safe(d.site) ? `<a href="${esc(d.site)}" target="_blank" rel="noopener">🌐 Site</a>` : "",
+      `<a href="${esc(maps)}" target="_blank" rel="noopener">🗺️ Itinéraire</a>`,
+    ].join("");
+    const follow = d.statut === "suivie"
+      ? `<button data-dact="nouvelle">★ Suivie</button>`
+      : d.statut === "ignoree" ? `<button data-dact="nouvelle">↩︎ Rétablir</button>` : `<button data-dact="suivie">☆ Suivre</button>`;
+    const second = d.statut !== "ignoree" ? `<button data-dact="ignoree">👎 Écarter</button>` : `<button data-dact="delete">🗑️ Supprimer</button>`;
+    return `<article class="card dealer" data-id="${d.id}">
+      <h3>${esc(d.nom)}${d.statut === "suivie" ? " ⭐" : ""}</h3>
+      <div class="meta">${[d.type, d.distance_km != null ? `${Math.round(d.distance_km)} km` : null].filter(Boolean).map(esc).join(" · ")} ${stars(d.note_avis, d.nb_avis)}</div>
+      ${place ? `<div class="meta">${esc(place)}</div>` : ""}
+      ${(d.marques || []).length ? `<div class="chips">${d.marques.map((m) => `<span class="chip">${esc(m)}</span>`).join("")}</div>` : ""}
+      ${d.commentaire ? `<p class="small">${esc(d.commentaire)}</p>` : ""}
+      ${d.notes_utilisateur ? `<p class="small muted">Votre note : ${esc(d.notes_utilisateur)}</p>` : ""}
+      <div class="actions">${links}</div>
+      <div class="actions">${follow}${second}</div>
+    </article>`;
+  }).join("");
+  $$("[data-dact]", root).forEach((b) => b.addEventListener("click", async () => {
+    const id = b.closest(".dealer").dataset.id;
+    try {
+      if (b.dataset.dact === "delete") {
+        if (!confirm("Supprimer définitivement cette concession ?")) return;
+        await api(`/api/dealers/${id}`, { method: "DELETE" });
+      } else {
+        let notes = null;
+        if (b.dataset.dact === "ignoree") {
+          notes = prompt("Pourquoi l'écarter ? (le chef s'en souviendra)");
+          if (notes === null) return;
+        }
+        await api(`/api/dealers/${id}/status`, { method: "POST", body: { statut: b.dataset.dact, notes: notes || null } });
+      }
+      loadDealers();
+    } catch (e) { alert(e.message); }
+  }));
+}
+
+async function searchDealers() {
+  try {
+    await api("/api/dealers/search", { method: "POST", body: { consigne: "" } });
+  } catch (e) { alert(e.message); }
+  loadDealers();
+}
+
+async function addDealer(e) {
+  e.preventDefault();
+  const f = e.target, body = {};
+  for (const el of f.elements) {
+    if (!el.name) continue;
+    body[el.name] = el.dataset.csv !== undefined ? el.value.split(",").map((x) => x.trim()).filter(Boolean) : (el.value.trim() || null);
+  }
+  try {
+    await api("/api/dealers", { method: "POST", body });
+    f.reset();
+    $("#dealer-add").open = false;
+    dealerFilter = "";
+    loadDealers();
+  } catch (err) { alert(err.message); }
 }
 
 // ------------------------------------------------------------------ chat
@@ -395,8 +503,15 @@ function bind() {
     }
   });
   $$("#tabbar button").forEach((b) => b.addEventListener("click", () => go(b.dataset.tab)));
-  $$("[data-go]").forEach((b) => b.addEventListener("click", () => go(b.dataset.go)));
-  $$(".segmented button").forEach((b) => b.addEventListener("click", () => { listingFilter = b.dataset.filter; loadListings(); }));
+  $$("[data-go]").forEach((b) => b.addEventListener("click", () => {
+    go(b.dataset.go);
+    if (b.dataset.prefill) { $("#chat-input").value = b.dataset.prefill; $("#chat-input").focus(); }
+  }));
+  $$("[data-filter]").forEach((b) => b.addEventListener("click", () => { listingFilter = b.dataset.filter; loadListings(); }));
+  $$("[data-pane]").forEach((b) => b.addEventListener("click", () => { pane = b.dataset.pane; loadListings(); }));
+  $$("[data-dfilter]").forEach((b) => b.addEventListener("click", () => { dealerFilter = b.dataset.dfilter; loadDealers(); }));
+  $("#btn-dealers").addEventListener("click", searchDealers);
+  $("#dealer-form").addEventListener("submit", addDealer);
   $("#btn-mission").addEventListener("click", startMission);
   $("#btn-notif").addEventListener("click", enableNotifications);
   $("#chat-form").addEventListener("submit", sendChat);

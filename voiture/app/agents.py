@@ -98,6 +98,8 @@ Cherche des annonces de voitures à vendre correspondant à la consigne du chef.
   Utilise des requêtes du type « site:lacentrale.fr peugeot 308 hybride 2021 » ou « 308 occasion Lyon leboncoin ».
 - Ne retiens que des pages d'ANNONCE individuelle (pas des pages de résultats ou des articles), encore en ligne si possible.
 - Ignore les annonces déjà connues listées dans le contexte, sauf si leur prix a baissé (dis-le dans « pourquoi »).
+- Si le contexte contient des concessions du secteur (surtout celles « suivies »), cherche aussi dans leur stock
+  (page `url_stock` ou « site:leur-domaine.fr occasion ») : ce sont des vendeurs proches et vérifiés.
 - Renseigne prix (en euros), kilométrage, année, énergie, boîte, localisation, type de vendeur quand c'est visible.
 - Vise 5 à 15 annonces pertinentes ; la qualité prime sur la quantité.
 """,
@@ -111,6 +113,35 @@ Cherche des annonces de voitures à vendre correspondant à la consigne du chef.
     effort="medium",
     web_search_uses=10,
     web_fetch_uses=6,
+))
+
+_register(AgentSpec(
+    key="concessions",
+    nom="Repéreur de concessions",
+    emoji="🏢",
+    role="l'éclaireur qui recense les concessions et garages sérieux dans le secteur de l'acheteur.",
+    consignes="""
+Trouve les concessions automobiles et vendeurs de véhicules d'occasion dans le secteur de l'acheteur
+(sa ville et son rayon, dans le profil), en priorité pour les marques et modèles qui l'intéressent :
+- concessions officielles des marques visées et leurs labels occasion (Renew, Spoticar, Toyota Occasions,
+  Das WeltAuto, Volkswagen Occasions…), agents de marque, grands vendeurs VO, garages indépendants bien notés ;
+- pour chacune : nom, type, marques, adresse complète, ville, distance approximative en km depuis la ville de l'acheteur,
+  téléphone, site, page du stock d'occasions si tu la trouves, note et nombre d'avis s'ils sont visibles ;
+- `commentaire` : pourquoi elle est intéressante pour cet acheteur (et tout signal négatif repéré dans les avis) ;
+- ne reprends pas les concessions déjà connues listées dans le contexte, sauf pour compléter une information manquante.
+Vise 5 à 12 adresses fiables. Si une consigne nomme une concession précise, trouve ses coordonnées exactes.
+""",
+    rapport_schema=_obj({
+        "concessions": _arr(_obj({
+            "nom": S, "type": S, "marques": LS, "adresse": S, "ville": S, "distance_km": N,
+            "telephone": S, "site": S, "url_stock": S, "note_avis": N, "nb_avis": N,
+            "specialites": S, "commentaire": S,
+        }, ["nom", "ville"])),
+        "synthese": S,
+    }, ["concessions", "synthese"]),
+    effort="medium",
+    web_search_uses=8,
+    web_fetch_uses=3,
 ))
 
 _register(AgentSpec(

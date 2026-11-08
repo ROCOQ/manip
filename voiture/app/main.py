@@ -17,7 +17,7 @@ from pydantic import BaseModel
 
 from . import config
 from .agents import roster
-from .db import LISTING_STATUSES, Store
+from .db import DEALER_STATUSES, LISTING_STATUSES, Store
 from .notify import ensure_vapid, make_notifier, send_ntfy, send_webpush
 from .orchestrator import Chef
 from .scheduler import next_run_at, scheduler_loop
@@ -41,6 +41,27 @@ class StatusIn(BaseModel):
 
 class NoteIn(BaseModel):
     note: str
+
+
+class DealerIn(BaseModel):
+    nom: str
+    ville: str
+    type: str | None = None
+    marques: list[str] = []
+    adresse: str | None = None
+    telephone: str | None = None
+    site: str | None = None
+    url_stock: str | None = None
+    commentaire: str | None = None
+
+
+class DealerStatusIn(BaseModel):
+    statut: str
+    notes: str | None = None
+
+
+class DealerSearchIn(BaseModel):
+    consigne: str = ""
 
 
 def resolve_token(store: Store) -> str:
@@ -110,6 +131,7 @@ def create_app(store: Store | None = None, chef: Chef | None = None, scheduler: 
         return {
             "mission_en_cours": chef.current_run_id,
             "chat_occupe": chef.chat_busy,
+            "recherche_concessions": chef.dealer_search_busy(),
             "prochaine_mission": nxt.isoformat(timespec="minutes") if nxt else None,
             "profil_vide": store.profile_is_empty(),
             "dernier_rapport": last["rapport"] if last else None,
@@ -181,6 +203,50 @@ def create_app(store: Store | None = None, chef: Chef | None = None, scheduler: 
         if not listing:
             raise HTTPException(404, "Annonce introuvable")
         return listing
+
+    # ---------------------------------------------------------------- concessions
+    @app.get("/api/dealers", dependencies=api)
+    def dealers(statut: str | None = None):
+        if statut and statut not in DEALER_STATUSES:
+            raise HTTPException(400, "Statut inconnu")
+        return {
+            "concessions": store.list_dealers(statut),
+            "recherche_en_cours": chef.dealer_search_busy(),
+            "derniere_recherche": store.get_kv("derniere_recherche_concessions"),
+        }
+
+    @app.post("/api/dealers", dependencies=api)
+    def add_dealer(body: DealerIn):
+        if not body.nom.strip() or not body.ville.strip():
+            raise HTTPException(400, "Nom et ville obligatoires")
+        saved = store.upsert_dealer(body.model_dump(), origine="utilisateur")
+        if saved is None:
+            raise HTTPException(400, "Concession invalide")
+        return store.set_dealer_status(saved[0], "suivie")
+
+    @app.post("/api/dealers/search", dependencies=api)
+    def search_dealers(body: DealerSearchIn):
+        if not store.get_profile().get("localisation") and not body.consigne.strip():
+            raise HTTPException(400, "Indiquez d'abord votre ville dans le profil.")
+        if not chef.search_dealers_async(body.consigne[:1000]):
+            raise HTTPException(409, "Une recherche de concessions est déjà en cours.")
+        return {"ok": True}
+
+    @app.post("/api/dealers/{dealer_id}/status", dependencies=api)
+    def dealer_status(dealer_id: int, body: DealerStatusIn):
+        try:
+            dealer = store.set_dealer_status(dealer_id, body.statut, body.notes)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        if not dealer:
+            raise HTTPException(404, "Concession introuvable")
+        return dealer
+
+    @app.delete("/api/dealers/{dealer_id}", dependencies=api)
+    def delete_dealer(dealer_id: int):
+        if not store.delete_dealer(dealer_id):
+            raise HTTPException(404, "Concession introuvable")
+        return {"ok": True}
 
     # ---------------------------------------------------------------- chat
     @app.get("/api/chat", dependencies=api)

@@ -39,10 +39,11 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "frequence_heures": 24,
     "seuil_notification": 75,
     "ntfy_topic": "",
-    "agents_actifs": ["profil", "annonces", "fiabilite", "prix", "couts", "verif"],
+    "agents_actifs": ["profil", "annonces", "concessions", "fiabilite", "prix", "couts", "verif"],
 }
 
 LISTING_STATUSES = ("nouvelle", "vue", "favori", "rejetee")
+DEALER_STATUSES = ("nouvelle", "suivie", "ignoree")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS kv (
@@ -81,6 +82,20 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
     data TEXT NOT NULL,
     created TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS concessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cle TEXT NOT NULL UNIQUE,
+    nom TEXT NOT NULL,
+    type TEXT, marques TEXT,
+    adresse TEXT, ville TEXT, distance_km REAL,
+    telephone TEXT, site TEXT, url_stock TEXT,
+    note_avis REAL, nb_avis INTEGER,
+    specialites TEXT, commentaire TEXT,
+    statut TEXT NOT NULL DEFAULT 'nouvelle',
+    notes_utilisateur TEXT,
+    origine TEXT NOT NULL DEFAULT 'agent',
+    created TEXT NOT NULL, updated TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS memoire (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     note TEXT NOT NULL, ts TEXT NOT NULL
@@ -104,6 +119,47 @@ def normalize_url(url: str) -> str:
     )
     path = parts.path.rstrip("/") or "/"
     return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), path, query, ""))
+
+
+def _to_float(value: Any) -> float | None:
+    if value is None or value == "" or isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).replace(",", ".")
+    num = "".join(ch for ch in text if ch.isdigit() or ch == ".")
+    try:
+        return float(num.strip(".")) if num.strip(".") else None
+    except ValueError:
+        return None
+
+
+def _http_url(value: Any) -> str | None:
+    url = str(value or "").strip()
+    if not url:
+        return None
+    if not url.startswith(("http://", "https://")) and "." in url and " " not in url:
+        url = "https://" + url
+    return url if url.startswith(("http://", "https://")) else None
+
+
+def _norm_text(value: Any) -> str:
+    import unicodedata
+
+    text = unicodedata.normalize("NFKD", str(value or "")).encode("ascii", "ignore").decode().lower()
+    return " ".join("".join(ch if ch.isalnum() else " " for ch in text).split())
+
+
+def dealer_key(data: dict) -> str | None:
+    """Clé de dédoublonnage d'une concession : nom + ville (ou, à défaut, domaine du site)."""
+    nom = _norm_text(data.get("nom"))
+    if not nom:
+        return None
+    ville = _norm_text(data.get("ville"))
+    if ville:
+        return f"{nom}|{ville}"
+    site = _http_url(data.get("site"))
+    return f"{nom}|{urlsplit(site).netloc.removeprefix('www.')}" if site else nom
 
 
 def _to_int(value: Any) -> int | None:
@@ -376,6 +432,89 @@ class Store:
 
     def clear_chat(self) -> None:
         self._exec("DELETE FROM chat")
+
+    # ---------- concessions ----------
+    def upsert_dealer(self, data: dict, origine: str = "agent") -> tuple[int, bool] | None:
+        """Ajoute ou complète une concession. Renvoie (id, nouvelle?) ou None si le nom manque."""
+        key = dealer_key(data)
+        if not key:
+            return None
+        marques = data.get("marques")
+        if isinstance(marques, str):
+            marques = [m.strip() for m in marques.split(",") if m.strip()]
+        fields = {
+            "nom": str(data.get("nom")).strip()[:200],
+            "type": (data.get("type") or None),
+            "marques": json.dumps(marques, ensure_ascii=False) if marques else None,
+            "adresse": data.get("adresse") or None,
+            "ville": data.get("ville") or None,
+            "distance_km": _to_float(data.get("distance_km")),
+            "telephone": (str(data["telephone"]).strip() if data.get("telephone") else None),
+            "site": _http_url(data.get("site")),
+            "url_stock": _http_url(data.get("url_stock")),
+            "note_avis": _to_float(data.get("note_avis")),
+            "nb_avis": _to_int(data.get("nb_avis")),
+            "specialites": data.get("specialites") or None,
+            "commentaire": (data.get("commentaire") or data.get("pourquoi") or None),
+        }
+        if fields["note_avis"] is not None and not 0 <= fields["note_avis"] <= 5:
+            fields["note_avis"] = None
+        existing = self._one("SELECT id FROM concessions WHERE cle = ?", (key,))
+        ts = now()
+        if existing:
+            sets = ", ".join(f"{k} = COALESCE(?, {k})" for k in fields)
+            self._exec(f"UPDATE concessions SET {sets}, updated = ? WHERE id = ?",
+                       (*fields.values(), ts, existing["id"]))
+            return existing["id"], False
+        statut = "suivie" if origine == "utilisateur" else "nouvelle"
+        cols = ", ".join(fields)
+        marks = ", ".join("?" for _ in fields)
+        cur = self._exec(
+            f"INSERT INTO concessions(cle, {cols}, statut, origine, created, updated) "
+            f"VALUES(?, {marks}, ?, ?, ?, ?)",
+            (key, *fields.values(), statut, origine, ts, ts),
+        )
+        return cur.lastrowid, True
+
+    @staticmethod
+    def _decode_dealer(row: dict) -> dict:
+        row["marques"] = json.loads(row["marques"]) if row.get("marques") else []
+        return row
+
+    def get_dealer(self, dealer_id: int) -> dict | None:
+        row = self._one("SELECT * FROM concessions WHERE id = ?", (dealer_id,))
+        return self._decode_dealer(row) if row else None
+
+    def list_dealers(self, statut: str | None = None) -> list[dict]:
+        order = ("ORDER BY CASE statut WHEN 'suivie' THEN 0 ELSE 1 END, "
+                 "COALESCE(distance_km, 9999), COALESCE(note_avis, 0) DESC, id")
+        if statut:
+            rows = self._all(f"SELECT * FROM concessions WHERE statut = ? {order}", (statut,))
+        else:
+            rows = self._all(f"SELECT * FROM concessions WHERE statut != 'ignoree' {order}")
+        return [self._decode_dealer(r) for r in rows]
+
+    def set_dealer_status(self, dealer_id: int, statut: str, notes: str | None = None) -> dict | None:
+        if statut not in DEALER_STATUSES:
+            raise ValueError(f"statut inconnu : {statut}")
+        self._exec(
+            "UPDATE concessions SET statut = ?, notes_utilisateur = COALESCE(?, notes_utilisateur), updated = ? "
+            "WHERE id = ?",
+            (statut, notes, now(), dealer_id),
+        )
+        dealer = self.get_dealer(dealer_id)
+        if dealer and notes:
+            label = "suivie" if statut == "suivie" else "écartée" if statut == "ignoree" else statut
+            self.add_memory(f"Concession {label} « {dealer['nom']} » : {notes}")
+        return dealer
+
+    def delete_dealer(self, dealer_id: int) -> bool:
+        return self._exec("DELETE FROM concessions WHERE id = ?", (dealer_id,)).rowcount > 0
+
+    def dealers_digest(self, limit: int = 40) -> list[dict]:
+        """Résumé des concessions connues pour les agents (sans les concessions écartées)."""
+        keys = ("id", "nom", "type", "marques", "ville", "distance_km", "site", "url_stock", "statut", "notes_utilisateur")
+        return [{k: d.get(k) for k in keys if d.get(k)} for d in self.list_dealers()[:limit]]
 
     # ---------- abonnements push ----------
     def add_push_subscription(self, subscription: dict) -> None:

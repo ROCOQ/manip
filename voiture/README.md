@@ -1,7 +1,7 @@
 # 🚗 Chasseur de voiture : votre équipe d'agents IA
 
 Une app pour **iPhone et Mac** qui cherche votre prochaine voiture à votre place.
-Un **chef d'équipe IA** dirige six **agents spécialisés**, recoupe leurs rapports, classe les
+Un **chef d'équipe IA** dirige sept **agents spécialisés**, recoupe leurs rapports, classe les
 annonces et **vous prévient** quand une bonne affaire apparaît. Les recherches **continuent quand
 l'app est fermée**, selon votre profil et vos réponses, qui sont toutes mémorisées.
 
@@ -12,6 +12,7 @@ l'app est fermée**, selon votre profil et vos réponses, qui sont toutes mémor
 | 🧑‍✈️ **Chef d'équipe** | Reçoit votre profil et la mémoire, donne les consignes, recoupe les rapports, note chaque annonce sur 100, publie la synthèse et décide s'il faut vous notifier. C'est aussi lui qui vous répond dans l'onglet *Chef*. |
 | 🧭 **Conseiller besoins** | Traduit vos besoins en critères concrets et propose les modèles adaptés (avec motorisations et années). |
 | 🔎 **Chasseur d'annonces** | Cherche des annonces réelles et actuelles (La Centrale, Leboncoin, AutoScout24, L'argus, ParuVendu, Aramisauto, Spoticar…). |
+| 🏢 **Repéreur de concessions** | Recense les concessions officielles, labels occasion (Renew, Spoticar, Toyota Occasions…) et garages bien notés de votre secteur : adresse, distance, téléphone, site, page du stock, avis. |
 | 🛠️ **Expert fiabilité** | Défauts connus, rappels constructeur, motorisations à éviter, points à vérifier à l'essai. |
 | 💶 **Analyste prix** | Estime la cote de chaque annonce, repère les bonnes affaires et les prix suspects, donne une marge de négociation. |
 | 🧮 **Comptable auto** | Coût annuel réel : énergie, assurance, entretien, carte grise, malus, Crit'Air / ZFE, aides possibles. |
@@ -26,6 +27,7 @@ consulte via un outil ; plusieurs agents peuvent travailler **en parallèle**.
 - votre **profil** (budget, zone, usage, km/an, énergies, carrosseries, marques, critères rédhibitoires…) ;
 - vos **réglages** (fréquence des recherches, seuil de notification, agents actifs) ;
 - toutes les **annonces** vues, avec score, analyse, et votre avis (❤️ / 👎 + raison) ;
+- les **concessions** de votre secteur (trouvées par l'agent ou ajoutées par vous), suivies ou écartées ;
 - la **mémoire du chef** : ce que vous lui dites, ce que vous rejetez et pourquoi, les faits utiles
   appris pendant les missions (visible et effaçable dans *Profil*) ;
 - l'historique des **missions** (le journal de chaque agent est consultable dans *Équipe*) et du **chat**.
@@ -114,7 +116,13 @@ deviner (ex. `voiture-elias-7f3k`) et saisissez ce même sujet dans *Profil → 
    lancent toutes seules.
 3. **Annonces** : ❤️ pour garder, 👎 pour écarter **en disant pourquoi** : le chef s'en souvient aux
    missions suivantes. *Analyse de l'équipe* détaille juste prix, coût annuel, risque et conseil.
-4. **Équipe** : le journal de chaque mission (ce que chaque agent a fait et rendu) et les jetons consommés.
+4. **Annonces → 🏢 Concessions** : touchez **Trouver les concessions** (votre ville doit être dans le
+   profil), ou demandez au chef dans le chat : *« Trouve les concessions Toyota autour de chez moi »*,
+   *« Ajoute le garage Martin à Caluire »*, *« Écarte la concession X, trop chère »*. Vous pouvez aussi
+   en ajouter une à la main. Pour chacune : **Appeler**, **Stock**, **Site**, **Itinéraire** (Plans),
+   ☆ **Suivre** ou 👎 **Écarter** (avec la raison, mémorisée). Le chasseur d'annonces fouille ensuite
+   le stock des concessions suivies à chaque mission.
+5. **Équipe** : le journal de chaque mission (ce que chaque agent a fait et rendu) et les jetons consommés.
 
 ## Coûts et limites (à lire)
 
@@ -143,7 +151,7 @@ VOITURE_NO_AUTOAPP=1 .venv/bin/python -m unittest discover -s tests -v   # tests
 
 | Fichier | Contenu |
 |---|---|
-| `app/agents.py` | Définition des 6 agents (rôle, consignes, schéma du rapport, effort, outils web) |
+| `app/agents.py` | Définition des 7 agents (rôle, consignes, schéma du rapport, effort, outils web) |
 | `app/llm.py` | Boucle d'un agent : recherche web, reprise après `pause_turn`, rapport via l'outil `rapporter` |
 | `app/orchestrator.py` | Le chef : missions (agents en parallèle, budget d'appels), chat, mémoire |
 | `app/db.py` | Mémoire SQLite (profil, réglages, annonces dédoublonnées, missions, chat, abonnements) |

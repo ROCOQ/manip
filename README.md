@@ -1,7 +1,7 @@
 # manip — Émulateur Wii U sur iPad
 
 > 🚗 **Nouveau : [Chasseur de voiture](voiture/README.md)** — une app iPhone/Mac où un chef d'équipe IA
-> et six agents spécialisés cherchent votre prochaine voiture, en continu. Tout est dans [`voiture/`](voiture/).
+> et sept agents spécialisés cherchent votre prochaine voiture et les concessions de votre secteur, en continu. Tout est dans [`voiture/`](voiture/).
 
 Ce dépôt sert de **kit de préparation** pour jouer à vos jeux Wii U sur iPad :
 un guide d'installation, un script qui vérifie vos fichiers de jeux **avant** de

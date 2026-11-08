@@ -19,7 +19,7 @@ class AgentsTest(unittest.TestCase):
     def test_roster_and_tools(self):
         keys = [a["key"] for a in roster()]
         self.assertEqual(keys[0], "chef")
-        self.assertEqual(set(keys[1:]), {"profil", "annonces", "fiabilite", "prix", "couts", "verif"})
+        self.assertEqual(set(keys[1:]), {"profil", "annonces", "concessions", "fiabilite", "prix", "couts", "verif"})
         for spec in AGENTS.values():
             self.assertIn("rapporter", spec.system)
             self.assertEqual(spec.rapport_schema["type"], "object")

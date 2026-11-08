@@ -30,7 +30,9 @@ Ton équipe :
 
 Déroulé conseillé d'une mission :
 1. Si le profil a changé ou si aucune liste de modèles n'existe encore, consulte d'abord le conseiller besoins.
-2. Envoie le chasseur d'annonces avec des critères et des modèles précis (tu peux l'envoyer plusieurs fois, sur des modèles différents).
+2. Si aucune concession du secteur n'est connue (`concessions_connues` vide) et que le repéreur est dans l'équipe,
+   envoie-le une fois en parallèle du chasseur. Ensuite, demande au chasseur de fouiller aussi le stock des concessions suivies.
+   Envoie le chasseur d'annonces avec des critères et des modèles précis (tu peux l'envoyer plusieurs fois, sur des modèles différents).
 3. En parallèle (plusieurs appels dans le même message), fais évaluer les annonces trouvées par l'analyste prix et le détective,
    et les modèles par l'expert fiabilité et le comptable (inutile de refaire fiabilité/coûts si la mémoire les contient déjà).
 4. Publie le rapport : classe les annonces avec un score de 0 à 100 :
@@ -52,6 +54,10 @@ Tu es le chef d'une équipe d'agents IA qui aide l'utilisateur à trouver sa voi
 - Dès que tu apprends quelque chose d'utile, enregistre-le : `mettre_a_jour_profil` pour les champs du profil,
   `memoriser` pour tout le reste (goûts, contraintes, avis sur des annonces). Ne demande pas la permission pour ça.
 - Pour une question précise (fiabilité d'un modèle, coût, cote, annonce douteuse), consulte l'agent adapté avec `consulter_agent`.
+- Concessions : pour trouver celles du secteur, consulte l'agent `concessions` (ce qu'il trouve est enregistré tout seul
+  et s'affiche dans l'onglet Annonces → Concessions). Si l'utilisateur cite une concession ou un garage précis,
+  ajoute-le avec `ajouter_concession` (suivie = oui), puis consulte le repéreur si des coordonnées manquent.
+  Pour en écarter une, utilise `modifier_concession`.
 - Quand le profil est assez complet ou si l'utilisateur le demande, lance une mission complète avec `lancer_mission`
   (elle tourne en arrière-plan ; les résultats arrivent dans l'onglet Annonces et en notification).
 - Réponses courtes, concrètes, sans jargon. Pas de longs tableaux.
@@ -146,6 +152,40 @@ MEMORY_TOOL = {
     "description": "Mémoriser durablement une information utile sur l'acheteur ou sa recherche.",
     "input_schema": {"type": "object", "properties": {"note": {"type": "string"}}, "required": ["note"]},
 }
+DEALER_FIELDS = {
+    "nom": {"type": "string"},
+    "ville": {"type": "string"},
+    "type": {"type": "string", "description": "concession officielle, agent, garage indépendant, vendeur VO…"},
+    "marques": {"type": "array", "items": {"type": "string"}},
+    "adresse": {"type": "string"},
+    "telephone": {"type": "string"},
+    "site": {"type": "string"},
+    "url_stock": {"type": "string"},
+    "commentaire": {"type": "string"},
+}
+ADD_DEALER_TOOL = {
+    "name": "ajouter_concession",
+    "description": "Ajouter une concession ou un garage à la liste suivie par l'utilisateur.",
+    "input_schema": {
+        "type": "object",
+        "properties": {**DEALER_FIELDS, "suivre": {"type": "boolean", "description": "Vrai par défaut."}},
+        "required": ["nom", "ville"],
+    },
+}
+EDIT_DEALER_TOOL = {
+    "name": "modifier_concession",
+    "description": "Changer le statut d'une concession connue (par son id) : suivie, ignoree ou nouvelle, avec une note.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "id": {"type": "integer"},
+            "statut": {"type": "string", "enum": ["suivie", "ignoree", "nouvelle"]},
+            "note": {"type": "string"},
+        },
+        "required": ["id", "statut"],
+    },
+}
+
 MISSION_TOOL = {
     "name": "lancer_mission",
     "description": "Lancer en arrière-plan une mission complète de recherche d'annonces.",
@@ -164,6 +204,7 @@ class Chef:
         self.notifier = notifier
         self._mission_lock = threading.Lock()
         self._chat_lock = threading.Lock()
+        self._dealer_lock = threading.Lock()
         self.current_run_id: int | None = None
         self.chat_busy = False
 
@@ -190,6 +231,7 @@ class Chef:
             "profil": self.store.get_profile(),
             "memoire": [m["note"] for m in self.store.memories(40)],
             "annonces_deja_connues": self.store.known_listings_digest(60),
+            "concessions_connues": self.store.dealers_digest(30),
             "dernier_rapport": (last or {}).get("rapport", {}) and {
                 "resume": last["rapport"].get("resume"),
                 "modeles_conseilles": last["rapport"].get("modeles_conseilles"),
@@ -206,6 +248,8 @@ class Chef:
             ctx["annonces_deja_connues"] = [
                 {k: r[k] for k in ("url", "prix", "statut")} for r in self.store.known_listings_digest(80)
             ]
+        if agent_key in ("annonces", "concessions"):
+            ctx["concessions_connues"] = self.store.dealers_digest(40)
         if agent_key in ("prix", "verif"):
             wanted = {normalize_url(u) for u in (urls or run_listing_urls)}
             ctx["annonces"] = [
@@ -241,6 +285,8 @@ class Chef:
 
         if agent_key == "annonces" and "annonces" in report:
             report = self._store_listings(report, run_id, run_listing_urls)
+        if agent_key == "concessions" and "concessions" in report:
+            report = self._store_dealers(report)
 
         if run_id:
             self.store.append_journal(run_id, {
@@ -263,6 +309,44 @@ class Chef:
                 run_listing_urls.append(url)
             annotated.append({**item, "url": url, "id": listing_id, "nouvelle": is_new})
         return {**report, "annonces": annotated}
+
+    def _store_dealers(self, report: dict) -> dict:
+        annotated = []
+        for item in report.get("concessions") or []:
+            if not isinstance(item, dict):
+                continue
+            saved = self.store.upsert_dealer(item)
+            if saved is None:
+                continue
+            dealer_id, is_new = saved
+            annotated.append({**item, "id": dealer_id, "nouvelle": is_new})
+        return {**report, "concessions": annotated}
+
+    # ------------------------------------------------------------------ concessions
+    def dealer_search_busy(self) -> bool:
+        return self._dealer_lock.locked()
+
+    def search_dealers_async(self, consigne: str = "") -> bool:
+        """Lance le repéreur de concessions en arrière-plan (bouton de l'app). False s'il tourne déjà."""
+        if not self._dealer_lock.acquire(blocking=False):
+            return False
+        consigne = consigne.strip() or (
+            "Recense les concessions et garages sérieux de mon secteur pour les marques et modèles qui m'intéressent."
+        )
+
+        def worker() -> None:
+            try:
+                report = self.consult("concessions", consigne)
+                self.store.set_kv("derniere_recherche_concessions", {
+                    "synthese": report.get("synthese") or report.get("erreur"),
+                    "erreur": bool(report.get("erreur")),
+                    "nouvelles": sum(1 for c in report.get("concessions") or [] if c.get("nouvelle")),
+                })
+            finally:
+                self._dealer_lock.release()
+
+        threading.Thread(target=worker, name="concessions", daemon=True).start()
+        return True
 
     def _run_tool_calls(self, blocks, handler: Callable[[Any], str]) -> list[dict]:
         """Exécute les appels d'outils en parallèle et renvoie tous les résultats dans l'ordre."""
@@ -427,7 +511,7 @@ class Chef:
 
     def _chat_reply(self) -> str:
         agent_keys = list(AGENTS)
-        tools = [consult_tool(agent_keys), PROFILE_TOOL, MEMORY_TOOL, MISSION_TOOL]
+        tools = [consult_tool(agent_keys), PROFILE_TOOL, MEMORY_TOOL, ADD_DEALER_TOOL, EDIT_DEALER_TOOL, MISSION_TOOL]
         system = CHAT_SYSTEM.format(equipe=_equipe())
         history = self.store.chat_history(30)
         messages: list[dict] = [
@@ -449,6 +533,20 @@ class Chef:
             if block.name == PROFILE_TOOL["name"]:
                 profile = self.store.update_profile(args.get("modifications") or {})
                 return _truncate({"ok": True, "profil": profile})
+            if block.name == ADD_DEALER_TOOL["name"]:
+                follow = args.pop("suivre", True)
+                saved = self.store.upsert_dealer(args, origine="utilisateur" if follow else "agent")
+                if saved is None:
+                    return json.dumps({"ok": False, "erreur": "nom manquant"})
+                if follow:
+                    self.store.set_dealer_status(saved[0], "suivie")
+                return _truncate({"ok": True, "concession": self.store.get_dealer(saved[0])})
+            if block.name == EDIT_DEALER_TOOL["name"]:
+                try:
+                    dealer = self.store.set_dealer_status(int(args.get("id", 0)), args.get("statut", ""), args.get("note"))
+                except (TypeError, ValueError) as exc:
+                    return json.dumps({"ok": False, "erreur": str(exc)})
+                return _truncate({"ok": dealer is not None, "concession": dealer})
             if block.name == MEMORY_TOOL["name"]:
                 self.store.add_memory(args.get("note", ""))
                 return json.dumps({"ok": True})
