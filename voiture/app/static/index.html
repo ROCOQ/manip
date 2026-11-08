@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Chasseur de voiture</title>
+  <meta name="description" content="Votre équipe d'agents IA qui cherche votre prochaine voiture.">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Voiture">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/static/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1 id="title">Accueil</h1>
+    <span id="busy" class="busy" hidden>● agents au travail</span>
+  </header>
+
+  <main>
+    <!-- Connexion -->
+    <section id="login" class="view" hidden>
+      <div class="card">
+        <h2>Connexion</h2>
+        <p class="muted">Entrez le mot de passe de l'app (variable <code>VOITURE_APP_TOKEN</code>, ou celui affiché dans les logs du serveur au premier lancement).</p>
+        <form id="login-form">
+          <input id="login-token" type="password" autocomplete="current-password" placeholder="Mot de passe" required>
+          <button class="primary" type="submit">Se connecter</button>
+        </form>
+        <p id="login-error" class="error" hidden></p>
+      </div>
+    </section>
+
+    <!-- Accueil -->
+    <section id="view-accueil" class="view" hidden>
+      <div id="onboarding" class="card highlight" hidden>
+        <h2>Bienvenue 👋</h2>
+        <p>Votre équipe d'agents est prête. Pour commencer, remplissez votre profil ou discutez avec le chef : il vous posera les bonnes questions.</p>
+        <div class="row">
+          <button class="primary" data-go="profil">Remplir mon profil</button>
+          <button data-go="chef">Parler au chef</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row between">
+          <div>
+            <h2>Recherche</h2>
+            <p id="mission-status" class="muted">…</p>
+          </div>
+          <button id="btn-mission" class="primary">Chercher maintenant</button>
+        </div>
+      </div>
+
+      <div id="notif-card" class="card" hidden>
+        <h2>Notifications</h2>
+        <p id="notif-text" class="muted"></p>
+        <button id="btn-notif" class="primary" hidden>Activer les notifications</button>
+      </div>
+
+      <div id="report" class="card" hidden>
+        <h2>Dernier rapport du chef</h2>
+        <p class="muted small" id="report-date"></p>
+        <div id="report-resume" class="prose"></div>
+        <div id="report-models" class="chips"></div>
+        <div id="report-questions"></div>
+      </div>
+
+      <h2 class="section-title">Meilleures pistes</h2>
+      <div id="top-listings"></div>
+    </section>
+
+    <!-- Annonces -->
+    <section id="view-annonces" class="view" hidden>
+      <div class="segmented" role="tablist">
+        <button data-filter="" class="active">Toutes</button>
+        <button data-filter="favori">Favoris</button>
+        <button data-filter="nouvelle">Nouvelles</button>
+        <button data-filter="rejetee">Rejetées</button>
+      </div>
+      <div id="listings"></div>
+    </section>
+
+    <!-- Chef -->
+    <section id="view-chef" class="view chat-view" hidden>
+      <div id="chat-log" class="chat-log"></div>
+      <form id="chat-form" class="chat-form">
+        <textarea id="chat-input" rows="1" placeholder="Écrivez au chef…" required></textarea>
+        <button class="primary" type="submit" aria-label="Envoyer">➤</button>
+      </form>
+    </section>
+
+    <!-- Profil -->
+    <section id="view-profil" class="view" hidden>
+      <form id="profile-form" class="card form">
+        <h2>Mon profil d'acheteur</h2>
+        <p class="muted small">Tout est mémorisé. Le chef et les agents s'en servent à chaque recherche.</p>
+        <label>Prénom <input name="prenom"></label>
+        <div class="grid2">
+          <label>Ville ou code postal <input name="localisation" placeholder="Lyon, 69003…"></label>
+          <label>Rayon (km) <input name="rayon_km" type="number" min="0" step="10"></label>
+          <label>Budget max (€) <input name="budget_max" type="number" min="0" step="500"></label>
+          <label>Budget idéal (€) <input name="budget_ideal" type="number" min="0" step="500"></label>
+          <label>Financement
+            <select name="financement"><option>comptant</option><option>crédit</option><option>LOA</option><option>LLD</option><option>à définir</option></select>
+          </label>
+          <label>Usage principal
+            <select name="usage"><option>mixte</option><option>ville</option><option>route</option><option>autoroute</option></select>
+          </label>
+          <label>Km par an <input name="km_par_an" type="number" min="0" step="1000"></label>
+          <label>Places minimum <input name="nb_places" type="number" min="2" max="9"></label>
+          <label>Année minimum <input name="annee_min" type="number" min="1990" max="2030"></label>
+          <label>Km maximum <input name="km_max" type="number" min="0" step="5000"></label>
+          <label>Boîte
+            <select name="boite"><option>peu importe</option><option>manuelle</option><option>automatique</option></select>
+          </label>
+          <label>Vendeur
+            <select name="vendeur"><option>peu importe</option><option>particulier</option><option>professionnel</option></select>
+          </label>
+        </div>
+        <fieldset>
+          <legend>Carrosserie</legend>
+          <div class="checks" data-list="carrosseries">
+            <label><input type="checkbox" value="citadine"> Citadine</label>
+            <label><input type="checkbox" value="compacte"> Compacte</label>
+            <label><input type="checkbox" value="berline"> Berline</label>
+            <label><input type="checkbox" value="break"> Break</label>
+            <label><input type="checkbox" value="SUV"> SUV</label>
+            <label><input type="checkbox" value="monospace"> Monospace</label>
+            <label><input type="checkbox" value="coupé/cabriolet"> Coupé / cabriolet</label>
+            <label><input type="checkbox" value="utilitaire"> Utilitaire</label>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Énergie</legend>
+          <div class="checks" data-list="energies">
+            <label><input type="checkbox" value="essence"> Essence</label>
+            <label><input type="checkbox" value="diesel"> Diesel</label>
+            <label><input type="checkbox" value="hybride"> Hybride</label>
+            <label><input type="checkbox" value="hybride rechargeable"> Hybride rechargeable</label>
+            <label><input type="checkbox" value="électrique"> Électrique</label>
+            <label><input type="checkbox" value="GPL/E85"> GPL / E85</label>
+          </div>
+        </fieldset>
+        <label class="inline"><input type="checkbox" name="recharge_domicile"> Je peux recharger à domicile</label>
+        <label>Modèles envisagés <small>(séparés par des virgules)</small><input name="modeles_envisages" data-csv></label>
+        <label>Marques préférées <input name="marques_preferees" data-csv></label>
+        <label>Marques exclues <input name="marques_exclues" data-csv></label>
+        <label>Équipements indispensables <input name="equipements_indispensables" data-csv placeholder="CarPlay, caméra de recul…"></label>
+        <label>Critères rédhibitoires <input name="criteres_redhibitoires" data-csv placeholder="première main uniquement, pas de diesel…"></label>
+        <label>Tout ce qui compte pour vous <textarea name="notes_libres" rows="4" placeholder="Trajets, enfants, chien, coffre pour le vélo, style…"></textarea></label>
+        <button class="primary" type="submit">Enregistrer le profil</button>
+        <p id="profile-saved" class="ok" hidden>Profil enregistré ✓</p>
+      </form>
+
+      <form id="settings-form" class="card form">
+        <h2>Recherche automatique</h2>
+        <label class="inline"><input type="checkbox" name="recherche_auto"> Chercher en continu, même quand l'app est fermée</label>
+        <label>Fréquence
+          <select name="frequence_heures">
+            <option value="3">Toutes les 3 h</option><option value="6">Toutes les 6 h</option>
+            <option value="12">Toutes les 12 h</option><option value="24">Une fois par jour</option>
+            <option value="48">Tous les 2 jours</option><option value="168">Une fois par semaine</option>
+          </select>
+        </label>
+        <label>Me prévenir à partir d'un score de <output id="seuil-out"></output>/100
+          <input name="seuil_notification" type="range" min="40" max="95" step="5">
+        </label>
+        <label>Sujet ntfy (optionnel) <input name="ntfy_topic" placeholder="ex. voiture-elias-7f3k"></label>
+        <fieldset>
+          <legend>Agents actifs</legend>
+          <div class="checks" id="agent-checks"></div>
+        </fieldset>
+        <div class="row">
+          <button class="primary" type="submit">Enregistrer</button>
+          <button type="button" id="btn-test-notif">Tester les notifications</button>
+        </div>
+        <p id="settings-saved" class="ok" hidden>Réglages enregistrés ✓</p>
+      </form>
+
+      <div class="card">
+        <h2>Ce que le chef a retenu</h2>
+        <form id="memory-form" class="row">
+          <input id="memory-input" placeholder="Ajouter une info à retenir…" required>
+          <button type="submit">Ajouter</button>
+        </form>
+        <ul id="memory-list" class="memory"></ul>
+      </div>
+      <p class="center"><button id="btn-logout" class="link">Se déconnecter de cet appareil</button></p>
+    </section>
+
+    <!-- Équipe -->
+    <section id="view-equipe" class="view" hidden>
+      <div id="team"></div>
+      <h2 class="section-title">Missions</h2>
+      <div id="missions"></div>
+    </section>
+  </main>
+
+  <nav class="tabbar" id="tabbar" hidden>
+    <button data-tab="accueil"><span>🏠</span>Accueil</button>
+    <button data-tab="annonces"><span>🚗</span>Annonces</button>
+    <button data-tab="chef"><span>💬</span>Chef</button>
+    <button data-tab="profil"><span>👤</span>Profil</button>
+    <button data-tab="equipe"><span>🤖</span>Équipe</button>
+  </nav>
+
+  <dialog id="dialog"><div id="dialog-body"></div><form method="dialog"><button class="primary">Fermer</button></form></dialog>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
