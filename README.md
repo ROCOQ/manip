@@ -1,4 +1,23 @@
-# manip — Émulateur Wii U sur iPad
+# manip — Jouer sur iPad (Wii U et Steam)
+
+## 🆕 Votre bibliothèque Steam sur iPad, sans PC et gratuitement
+
+Solution : **GeForce NOW (offre gratuite) dans Safari**, pour les jeux Steam
+présents dans son catalogue. Sessions d'1 h, file d'attente, mais 0 € et aucun PC.
+
+1. Guide complet et arbre de décision : [docs/steam/STEAM_IPAD.md](docs/steam/STEAM_IPAD.md)
+2. Quels jeux de ma bibliothèque sont compatibles ?
+   ```bash
+   python3 tools/steam_cloud_check.py --library mes_jeux.txt
+   # ou : STEAM_API_KEY=... python3 tools/steam_cloud_check.py --steamid 7656119XXXXXXXXXX
+   ```
+   (fonctionne aussi sur l'iPad dans l'app gratuite **a-Shell**)
+3. Fluidité et dépannage : [docs/steam/FLUIDITE.md](docs/steam/FLUIDITE.md)
+4. Agents : `steam-ipad-advisor`, `steam-library-checker`, `steam-cloud-troubleshooter`.
+
+---
+
+## Émulateur Wii U sur iPad
 
 Ce dépôt sert de **kit de préparation** pour jouer à vos jeux Wii U sur iPad :
 un guide d'installation, un script qui vérifie vos fichiers de jeux **avant** de

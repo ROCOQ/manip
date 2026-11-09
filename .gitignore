@@ -11,3 +11,7 @@ games/
 __pycache__/
 *.pyc
 .DS_Store
+
+# Identifiants
+.env
+*apikey*
